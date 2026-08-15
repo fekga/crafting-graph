@@ -5,6 +5,6 @@ export default defineConfig({
   // Relative base so the built app works from any path,
   // including a GitHub Pages project site like
   // https://<user>.github.io/<repo>/
-  base: './',
+  base: './poe-crafting-static',
   plugins: [react()],
 })
