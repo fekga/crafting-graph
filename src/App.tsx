@@ -48,7 +48,6 @@ const initialEdges: Edge[] = [
     id: 'e1',
     source: 'node-1',
     target: 'node-2',
-    label: 'Next',
     markerEnd: { type: MarkerType.ArrowClosed },
   },
 ]
@@ -70,7 +69,7 @@ function App() {
     if (shared) {
       setGraphName(shared.name)
       setNodes(shared.data.nodes)
-      setEdges(shared.data.edges)
+      // setEdges(shared.data.edges)
       setSelectedId(shared.data.nodes[0]?.id ?? null)
       setSavedId(undefined)
       setStatus('Loaded from shared link')
@@ -81,20 +80,20 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const onConnect = useCallback((connection: Connection) => {
-    const outcome = window.prompt('Outcome label', 'Success') || 'Next'
-    setEdges(eds =>
-      addEdge(
-        {
-          ...connection,
-          id: `e-${Date.now()}`,
-          label: outcome,
-          markerEnd: { type: MarkerType.ArrowClosed },
-        },
-        eds,
-      ),
-    )
-  }, [setEdges])
+  // const onConnect = useCallback((connection: Connection) => {
+  //   const outcome = window.prompt('Outcome label', 'Success') || 'Next'
+  //   setEdges(eds =>
+  //     addEdge(
+  //       {
+  //         ...connection,
+  //         id: `e-${Date.now()}`,
+  //         label: outcome,
+  //         markerEnd: { type: MarkerType.ArrowClosed },
+  //       },
+  //       eds,
+  //     ),
+  //   )
+  // }, [setEdges])
 
   function addNode() {
     const id = `node-${Date.now()}`
@@ -215,7 +214,7 @@ function App() {
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
+            // onConnect={onConnect}
             onNodeClick={(_, node) => setSelectedId(node.id)}
             fitView
           >
