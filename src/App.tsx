@@ -80,20 +80,19 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // const onConnect = useCallback((connection: Connection) => {
-  //   const outcome = window.prompt('Outcome label', 'Success') || 'Next'
-  //   setEdges(eds =>
-  //     addEdge(
-  //       {
-  //         ...connection,
-  //         id: `e-${Date.now()}`,
-  //         label: outcome,
-  //         markerEnd: { type: MarkerType.ArrowClosed },
-  //       },
-  //       eds,
-  //     ),
-  //   )
-  // }, [setEdges])
+  const onConnect = useCallback((connection: Connection) => {
+    setEdges(eds =>
+      addEdge(
+        {
+          ...connection,
+          id: `e-${Date.now()}`,
+          label: null,
+          markerEnd: { type: MarkerType.ArrowClosed },
+        },
+        eds,
+      ),
+    )
+  }, [setEdges])
 
   function addNode() {
     const id = `node-${Date.now()}`
@@ -214,7 +213,7 @@ function App() {
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
-            // onConnect={onConnect}
+            onConnect={onConnect}
             onNodeClick={(_, node) => setSelectedId(node.id)}
             fitView
           >
