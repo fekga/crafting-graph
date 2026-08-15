@@ -1,0 +1,166 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+body {
+  background: #111827;
+  color: #e5e7eb;
+}
+
+button, input, textarea {
+  font: inherit;
+}
+
+button {
+  border: 1px solid #374151;
+  background: #1f2937;
+  color: #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 11px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #374151;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #374151;
+  background: #0f172a;
+}
+
+h1 {
+  margin: 0 0 5px;
+  font-size: 20px;
+}
+
+h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+h3 {
+  font-size: 14px;
+}
+
+.graph-name {
+  width: 260px;
+  padding: 5px 8px;
+  background: transparent;
+  border: 1px solid #374151;
+  color: #9ca3af;
+  border-radius: 5px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.status {
+  color: #9ca3af;
+  font-size: 13px;
+  min-width: 80px;
+}
+
+main {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 350px;
+}
+
+.canvas {
+  min-width: 0;
+  min-height: 0;
+}
+
+aside {
+  overflow-y: auto;
+  padding: 18px;
+  border-left: 1px solid #374151;
+  background: #111827;
+}
+
+aside label {
+  display: block;
+  margin: 14px 0 5px;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+aside input:not([type="checkbox"]),
+aside textarea {
+  width: 100%;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  background: #1f2937;
+  color: #e5e7eb;
+  padding: 8px;
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.modifier {
+  padding: 10px;
+  margin-bottom: 8px;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  background: #172033;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkbox input {
+  width: auto;
+}
+
+.modifier button {
+  margin-top: 7px;
+  font-size: 12px;
+}
+
+.saved {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 6px;
+}
+
+.muted {
+  color: #6b7280;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid #374151;
+  margin: 18px 0;
+}
