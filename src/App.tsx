@@ -210,6 +210,7 @@ function App() {
       <main>
         <section className="canvas">
           <ReactFlow
+            colorMode="dark"
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
