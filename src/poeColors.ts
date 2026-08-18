@@ -14,7 +14,7 @@ export const POE_TEXT_COLORS: { name: string; value: string }[] = [
   { name: 'Corrupted', value: '#d20000' },
   { name: 'Prophecy', value: '#b54bff' },
   { name: 'Crafted', value: '#b4b4ff' },
-  { name: 'Fractured', value: '#8ac9d1' },
+  { name: 'Fractured', value: '#a29160' },
 ]
 
 /** The tag library a fresh graph starts with. All fully editable/removable
@@ -24,7 +24,7 @@ export const DEFAULT_TAG_PRESETS: AffixTag[] = [
   { id: 'tag-suffix', label: 'Suffix', color: '#d99a4e' },
   { id: 'tag-implicit', label: 'Implicit', color: '#9b8cd9' },
   { id: 'tag-enchant', label: 'Enchant', color: '#6fcf97' },
-  { id: 'tag-fractured', label: 'Fractured', color: '#8ac9d1' },
+  { id: 'tag-fractured', label: 'Fractured', color: '#a29160' },
   { id: 'tag-crafted', label: 'Crafted', color: '#b4b4ff' },
   { id: 'tag-corrupted', label: 'Corrupted', color: '#d20000' },
 ]
