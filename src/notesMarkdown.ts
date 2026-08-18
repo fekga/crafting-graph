@@ -2,7 +2,13 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { CURRENCIES } from './data/currencies'
 
-marked.setOptions({ breaks: true })
+const renderer = new marked.Renderer()
+renderer.link = ({ href, title, text }) => {
+  return text
+}
+
+marked.setOptions({ breaks: true, renderer: renderer })
+
 
 const SHORTCODE_RE = /\{\{currency:([^}]+)\}\}/g
 

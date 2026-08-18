@@ -60,14 +60,14 @@ const initialNodes: Node<CraftNodeData>[] = [
         {
           id: 'm1',
           text: '+2 to Level of all Spell Skill Gems',
-          textColor: '#8888ff',
-          tags: [DEFAULT_TAG_PRESETS[0]],
+          textColor: '#aa9e82',
+          tags: [DEFAULT_TAG_PRESETS[4], DEFAULT_TAG_PRESETS[0]],
         },
         {
           id: 'm2',
           text: '+120 to maximum Life',
           textColor: '#8888ff',
-          tags: [DEFAULT_TAG_PRESETS[1]],
+          tags: [DEFAULT_TAG_PRESETS[0]],
         },
       ],
       notes: 'Use {{currency:Orb of Annulment}} first if too many junk mods show up.',
