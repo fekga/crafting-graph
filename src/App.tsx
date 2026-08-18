@@ -209,7 +209,7 @@ function App() {
     const from = mods.findIndex(m => m.id === id)
     const to = from + direction
     if (from === -1 || to < 0 || to >= mods.length) return
-    ;[mods[from], mods[to]] = [mods[to], mods[from]]
+      ;[mods[from], mods[to]] = [mods[to], mods[from]]
     updateSelected({ modifiers: mods })
   }
 
@@ -231,7 +231,7 @@ function App() {
     <div className="app">
       <header>
         <div>
-          <h1>PoE Crafting Graph</h1>
+          <h1>Crafting Graph</h1>
           <input
             value={graphName}
             onChange={e => setGraphName(e.target.value)}
