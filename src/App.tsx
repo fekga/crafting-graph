@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   addEdge,
   Background,
@@ -10,16 +10,37 @@ import {
   useNodesState,
   type Connection,
   type Edge,
+  type EdgeTypes,
   type Node,
+  type NodeTypes,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { deleteGraph, listGraphs, saveGraph, type SavedGraph } from './storage'
-import { buildShareUrl, clearShareHash, readSharedFromUrl } from './share'
-import type { CraftNodeData, Modifier } from './types'
+import { type ExportPayload } from './exportText'
+import { currencyShortcode, renderNotesHtml } from './notesMarkdown'
+import { DEFAULT_TAG_PRESETS, hexToRgbTriple } from './poeColors'
+import type { AffixTag, CraftNodeData, Modifier } from './types'
+import CraftNode from './components/CraftNode'
+import RemovableEdge from './components/RemovableEdge'
+import AffixEditor from './components/AffixEditor'
+import CurrencyPicker from './components/CurrencyPicker'
+import ExportImportModal from './components/ExportImportModal'
+import { findCurrencyByName, type Currency } from './data/currencies'
+
+const nodeTypes: NodeTypes = { craftNode: CraftNode }
+const edgeTypes: EdgeTypes = { removable: RemovableEdge }
+
+function withNodeType(n: Node<CraftNodeData>): Node<CraftNodeData> {
+  return { ...n, type: 'craftNode' }
+}
+
+function withEdgeType(e: Edge): Edge {
+  return { ...e, type: 'removable' }
+}
 
 const initialNodes: Node<CraftNodeData>[] = [
   {
     id: 'node-1',
+    type: 'craftNode',
     position: { x: 100, y: 150 },
     data: {
       label: 'Start',
@@ -30,15 +51,26 @@ const initialNodes: Node<CraftNodeData>[] = [
   },
   {
     id: 'node-2',
+    type: 'craftNode',
     position: { x: 420, y: 150 },
     data: {
       label: 'Essence craft',
       action: 'Essence of Horror',
       modifiers: [
-        { id: 'm1', text: '+2 to Level of all Spell Skill Gems', mustRemain: true },
-        { id: 'm2', text: '100+ maximum Life', mustRemain: true },
+        {
+          id: 'm1',
+          text: '+2 to Level of all Spell Skill Gems',
+          textColor: '#8888ff',
+          tags: [DEFAULT_TAG_PRESETS[0]],
+        },
+        {
+          id: 'm2',
+          text: '+120 to maximum Life',
+          textColor: '#8888ff',
+          tags: [DEFAULT_TAG_PRESETS[1]],
+        },
       ],
-      notes: '',
+      notes: 'Use {{currency:Orb of Annulment}} first if too many junk mods show up.',
     },
   },
 ]
@@ -48,6 +80,7 @@ const initialEdges: Edge[] = [
     id: 'e1',
     source: 'node-1',
     target: 'node-2',
+    type: 'removable',
     markerEnd: { type: MarkerType.ArrowClosed },
   },
 ]
@@ -57,36 +90,30 @@ function App() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [selectedId, setSelectedId] = useState<string | null>('node-2')
   const [graphName, setGraphName] = useState('My Crafting Plan')
-  const [savedId, setSavedId] = useState<string | undefined>()
-  const [graphs, setGraphs] = useState<SavedGraph[]>([])
   const [status, setStatus] = useState('')
+  const [affixEditorFor, setAffixEditorFor] = useState<'new' | string | null>(null)
+  const [tagPresets, setTagPresets] = useState<AffixTag[]>(DEFAULT_TAG_PRESETS)
+  const [currencyPickerFor, setCurrencyPickerFor] = useState<'action' | 'notes' | null>(null)
+  const [exportImportMode, setExportImportMode] = useState<'export' | 'import' | null>(null)
+  const [editMode, setEditMode] = useState(true)
+  const notesRef = useRef<HTMLTextAreaElement>(null)
 
   const selectedNode = nodes.find(n => n.id === selectedId)
 
   useEffect(() => {
-    // If this page was opened via a shared link, load that graph first.
-    const shared = readSharedFromUrl()
-    if (shared) {
-      setGraphName(shared.name)
-      setNodes(shared.data.nodes)
-      // setEdges(shared.data.edges)
-      setSelectedId(shared.data.nodes[0]?.id ?? null)
-      setSavedId(undefined)
-      setStatus('Loaded from shared link')
-      clearShareHash()
+    if (selectedId && !nodes.some(n => n.id === selectedId)) {
+      setSelectedId(nodes[0]?.id ?? null)
     }
-
-    listGraphs().then(setGraphs).catch(() => setStatus('Could not read saved graphs'))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [nodes, selectedId])
 
   const onConnect = useCallback((connection: Connection) => {
+    if (connection.source === connection.target) return
     setEdges(eds =>
       addEdge(
         {
           ...connection,
           id: `e-${Date.now()}`,
-          label: null,
+          type: 'removable',
           markerEnd: { type: MarkerType.ArrowClosed },
         },
         eds,
@@ -94,10 +121,16 @@ function App() {
     )
   }, [setEdges])
 
+  const isValidConnection = useCallback(
+    (conn: Connection | Edge) => conn.source !== conn.target,
+    [],
+  )
+
   function addNode() {
     const id = `node-${Date.now()}`
     const node: Node<CraftNodeData> = {
       id,
+      type: 'craftNode',
       position: { x: 250 + nodes.length * 30, y: 300 + nodes.length * 20 },
       data: {
         label: 'New crafting step',
@@ -123,20 +156,43 @@ function App() {
 
   function addModifier() {
     if (!selectedNode) return
-    const modifier: Modifier = {
-      id: `mod-${Date.now()}`,
-      text: 'New modifier',
-      mustRemain: true,
-    }
-    updateSelected({ modifiers: [...selectedNode.data.modifiers, modifier] })
+    setAffixEditorFor('new')
   }
 
-  function updateModifier(id: string, patch: Partial<Modifier>) {
+  function handleSaveAffix(modifier: Modifier, updatedPresets: AffixTag[]) {
+    if (!selectedNode || !affixEditorFor) return
+    if (affixEditorFor === 'new') {
+      updateSelected({ modifiers: [...selectedNode.data.modifiers, modifier] })
+    } else {
+      updateSelected({
+        modifiers: selectedNode.data.modifiers.map(m => (m.id === modifier.id ? modifier : m)),
+      })
+    }
+    setTagPresets(updatedPresets)
+    setAffixEditorFor(null)
+  }
+
+  function handlePickCurrency(currency: Currency) {
+    if (currencyPickerFor === 'notes') {
+      insertIntoNotes(currencyShortcode(currency.name))
+    } else {
+      updateSelected({ action: currency.name })
+    }
+    setCurrencyPickerFor(null)
+  }
+
+  function insertIntoNotes(snippet: string) {
     if (!selectedNode) return
-    updateSelected({
-      modifiers: selectedNode.data.modifiers.map(m =>
-        m.id === id ? { ...m, ...patch } : m,
-      ),
+    const textarea = notesRef.current
+    const current = selectedNode.data.notes
+    const start = textarea?.selectionStart ?? current.length
+    const end = textarea?.selectionEnd ?? current.length
+    const next = current.slice(0, start) + snippet + current.slice(end)
+    updateSelected({ notes: next })
+    requestAnimationFrame(() => {
+      textarea?.focus()
+      const cursor = start + snippet.length
+      textarea?.setSelectionRange(cursor, cursor)
     })
   }
 
@@ -147,42 +203,28 @@ function App() {
     })
   }
 
-  async function handleSave() {
-    try {
-      const result = await saveGraph(graphName, { nodes, edges }, savedId)
-      setSavedId(result.id)
-      setGraphs(await listGraphs())
-      setStatus('Saved')
-    } catch {
-      setStatus('Could not save')
-    }
+  function moveModifier(id: string, direction: -1 | 1) {
+    if (!selectedNode) return
+    const mods = [...selectedNode.data.modifiers]
+    const from = mods.findIndex(m => m.id === id)
+    const to = from + direction
+    if (from === -1 || to < 0 || to >= mods.length) return
+    ;[mods[from], mods[to]] = [mods[to], mods[from]]
+    updateSelected({ modifiers: mods })
   }
 
-  async function handleShare() {
-    try {
-      const url = buildShareUrl({ name: graphName, data: { nodes, edges } })
-      await navigator.clipboard.writeText(url)
-      setStatus('Share link copied to clipboard')
-    } catch {
-      setStatus('Could not copy link')
-    }
+  function currentExportPayload(): ExportPayload {
+    return { name: graphName, data: { nodes, edges, tagPresets } }
   }
 
-  function loadGraph(graph: SavedGraph) {
-    setGraphName(graph.name)
-    setSavedId(graph.id)
-    setNodes(graph.data.nodes)
-    setEdges(graph.data.edges)
-    setSelectedId(graph.data.nodes[0]?.id ?? null)
-    setStatus('Loaded')
-  }
-
-  async function handleDelete() {
-    if (!savedId) return
-    await deleteGraph(savedId)
-    setSavedId(undefined)
-    setGraphs(await listGraphs())
-    setStatus('Deleted')
+  function handleImport(payload: ExportPayload) {
+    setGraphName(payload.name)
+    setNodes(payload.data.nodes.map(withNodeType))
+    setEdges(payload.data.edges.map(withEdgeType))
+    setTagPresets(payload.data.tagPresets?.length ? payload.data.tagPresets : DEFAULT_TAG_PRESETS)
+    setSelectedId(payload.data.nodes[0]?.id ?? null)
+    setStatus('Imported')
+    setExportImportMode(null)
   }
 
   return (
@@ -198,9 +240,8 @@ function App() {
         </div>
         <div className="toolbar">
           <button onClick={addNode}>+ Add node</button>
-          <button onClick={handleSave}>Save</button>
-          <button onClick={handleShare}>Share link</button>
-          {savedId && <button onClick={handleDelete}>Delete</button>}
+          <button onClick={() => setExportImportMode('export')}>Export text</button>
+          <button onClick={() => setExportImportMode('import')}>Import text</button>
           <span className="status">{status}</span>
         </div>
       </header>
@@ -208,12 +249,14 @@ function App() {
       <main>
         <section className="canvas">
           <ReactFlow
-            colorMode="dark"
             nodes={nodes}
             edges={edges}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            isValidConnection={isValidConnection}
             onNodeClick={(_, node) => setSelectedId(node.id)}
             fitView
           >
@@ -224,73 +267,160 @@ function App() {
         </section>
 
         <aside>
-          <h2>Saved graphs</h2>
-          {graphs.length === 0 && <p className="muted">No saved graphs.</p>}
-          {graphs.map(g => (
-            <button className="saved" key={g.id} onClick={() => loadGraph(g)}>
-              {g.name}
-            </button>
-          ))}
-
-          <hr />
-
           {selectedNode ? (
             <>
-              <h2>Crafting step</h2>
+              <div className="row-between" style={{ marginTop: 0 }}>
+                <h2 style={{ border: 'none', padding: 0, margin: 0 }}>Crafting step</h2>
+                <button onClick={() => setEditMode(m => !m)}>
+                  {editMode ? 'Preview' : 'Edit'}
+                </button>
+              </div>
 
               <label>Name</label>
-              <input
-                value={selectedNode.data.label}
-                onChange={e => updateSelected({ label: e.target.value })}
-              />
+              {editMode ? (
+                <input
+                  value={selectedNode.data.label}
+                  onChange={e => updateSelected({ label: e.target.value })}
+                />
+              ) : (
+                <p className="preview-text preview-name">{selectedNode.data.label || '\u2014'}</p>
+              )}
 
               <label>Action / currency</label>
-              <input
-                value={selectedNode.data.action}
-                onChange={e => updateSelected({ action: e.target.value })}
-                placeholder="e.g. Essence of Horror"
-              />
+              {editMode ? (
+                <div className="action-row">
+                  {(() => {
+                    const currency = findCurrencyByName(selectedNode.data.action)
+                    return currency && <img className="action-icon" src={currency.icon} alt="" />
+                  })()}
+                  <input
+                    value={selectedNode.data.action}
+                    onChange={e => updateSelected({ action: e.target.value })}
+                    placeholder="e.g. Essence of Horror"
+                  />
+                  <button onClick={() => setCurrencyPickerFor('action')}>Pick</button>
+                </div>
+              ) : (
+                <div className="action-row">
+                  {(() => {
+                    const currency = findCurrencyByName(selectedNode.data.action)
+                    return currency && <img className="action-icon" src={currency.icon} alt="" />
+                  })()}
+                  <p className="preview-text">{selectedNode.data.action || '\u2014'}</p>
+                </div>
+              )}
 
               <div className="row-between">
                 <h3>Modifiers</h3>
-                <button onClick={addModifier}>+ Add</button>
+                {editMode && <button onClick={addModifier}>+ Add</button>}
               </div>
 
-              {selectedNode.data.modifiers.map(mod => (
+              {selectedNode.data.modifiers.length === 0 && (
+                <p className="muted">No modifiers yet.</p>
+              )}
+
+              {selectedNode.data.modifiers.map((mod, i) => (
                 <div className="modifier" key={mod.id}>
-                  <input
-                    value={mod.text}
-                    onChange={e =>
-                      updateModifier(mod.id, { text: e.target.value })
-                    }
-                  />
-                  <label className="checkbox">
-                    <input
-                      type="checkbox"
-                      checked={mod.mustRemain}
-                      onChange={e =>
-                        updateModifier(mod.id, { mustRemain: e.target.checked })
-                      }
-                    />
-                    Must remain
-                  </label>
-                  <button onClick={() => removeModifier(mod.id)}>Remove</button>
+                  <div className="modifier-text-row">
+                    {mod.tags.map(tag => (
+                      <span
+                        key={tag.id}
+                        className="tag-badge"
+                        style={{
+                          ['--chip-color' as any]: tag.color,
+                          ['--chip-rgb' as any]: hexToRgbTriple(tag.color),
+                        }}
+                      >
+                        {tag.label}
+                      </span>
+                    ))}
+                    <span className="modifier-text" style={{ color: mod.textColor }}>
+                      {mod.text}
+                    </span>
+                  </div>
+                  {editMode && (
+                    <div className="modifier-actions">
+                      <button
+                        className="reorder-btn"
+                        title="Move up"
+                        disabled={i === 0}
+                        onClick={() => moveModifier(mod.id, -1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        className="reorder-btn"
+                        title="Move down"
+                        disabled={i === selectedNode.data.modifiers.length - 1}
+                        onClick={() => moveModifier(mod.id, 1)}
+                      >
+                        ↓
+                      </button>
+                      <button onClick={() => setAffixEditorFor(mod.id)}>Edit</button>
+                      <button onClick={() => removeModifier(mod.id)}>Remove</button>
+                    </div>
+                  )}
                 </div>
               ))}
 
-              <label>Notes</label>
-              <textarea
-                rows={5}
-                value={selectedNode.data.notes}
-                onChange={e => updateSelected({ notes: e.target.value })}
-                placeholder="Describe what this step is trying to achieve..."
-              />
+              <div className="row-between">
+                <label style={{ margin: 0 }}>Notes</label>
+                {editMode && (
+                  <div className="notes-toolbar">
+                    <button onClick={() => setCurrencyPickerFor('notes')}>+ Currency icon</button>
+                  </div>
+                )}
+              </div>
+              {editMode ? (
+                <textarea
+                  ref={notesRef}
+                  className="notes-textarea"
+                  rows={6}
+                  value={selectedNode.data.notes}
+                  onChange={e => updateSelected({ notes: e.target.value })}
+                  placeholder="Describe what this step is trying to achieve... Markdown supported."
+                />
+              ) : (
+                <div
+                  className="notes-preview"
+                  dangerouslySetInnerHTML={{ __html: renderNotesHtml(selectedNode.data.notes) || '<p class="muted">No notes.</p>' }}
+                />
+              )}
             </>
           ) : (
             <p className="muted">Select a node to edit it.</p>
           )}
         </aside>
       </main>
+
+      {affixEditorFor && (
+        <AffixEditor
+          modifier={
+            affixEditorFor === 'new'
+              ? null
+              : selectedNode?.data.modifiers.find(m => m.id === affixEditorFor) ?? null
+          }
+          tagPresets={tagPresets}
+          onSave={handleSaveAffix}
+          onClose={() => setAffixEditorFor(null)}
+        />
+      )}
+
+      {currencyPickerFor && (
+        <CurrencyPicker
+          onPick={handlePickCurrency}
+          onClose={() => setCurrencyPickerFor(null)}
+        />
+      )}
+
+      {exportImportMode && (
+        <ExportImportModal
+          mode={exportImportMode}
+          exportPayload={exportImportMode === 'export' ? currentExportPayload() : undefined}
+          onImport={handleImport}
+          onClose={() => setExportImportMode(null)}
+        />
+      )}
     </div>
   )
 }

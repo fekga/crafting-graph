@@ -24,17 +24,38 @@ Outputs a fully static site to `dist/`. Open `dist/index.html` directly, or
 serve the folder with any static file host.
 
 ## Features
-- Add crafting nodes, connect them, label outcomes (success/failure/partial)
-- Edit node name, action, required modifiers and notes
-- Save/load recipes — stored locally in your browser (`localStorage`), so
-  they persist between visits on the same device/browser
-- **Share link** — click "Share link" to copy a URL that encodes the entire
-  recipe (compressed) directly in the link. Anyone who opens it gets an
-  editable copy loaded automatically, no account or server needed. Note:
-  very large graphs make longer URLs — this is fine for typical recipes but
-  isn't meant for huge graphs.
-- Delete saved recipes
+- Add crafting nodes, connect them with arrows
+- Build your own modifiers with the "+ Add" affix editor: write the mod
+  text yourself, pick its text color from a Path of Exile-inspired palette
+  (or any custom hex/color-wheel value), and attach any number of tags —
+  Prefix, Suffix, Implicit, Enchant come built in, plus special cases like
+  Fractured or Crafted, and you can create, rename, recolor, or delete your
+  own custom tags too. A modifier can carry several tags at once (e.g.
+  Prefix + Fractured).
+- Currency icons — pick from ~140 real currency icons (orbs, shards,
+  essences, fossils, resonators, catalysts, oils, omens), sourced from the
+  [PoE Wiki's currency icon files](https://www.poewiki.net/wiki/Category:Currency_item_icons)
+- Embed currency icons inside notes too, via the "+ Currency icon" button
+  in the notes toolbar (uses a `{{currency:Name}}` shortcode under the hood)
+- Notes support Markdown (bold, lists, links, headings, etc.)
+- A node's notes (rendered, with icons) show directly on the graph, not
+  just in the sidebar
+- One **Edit / Preview** toggle for the whole side panel: Edit shows the
+  normal editable form; Preview shows a clean read-only rendering of the
+  same step (name, action + icon, modifiers, and rendered notes). The graph
+  canvas itself always renders in preview form — there's no separate
+  edit-on-canvas mode.
+- Remove a node with the × button that appears on hover; remove a
+  connection with the × button that appears on its midpoint (or select it
+  and press Backspace/Delete)
+- **Export text / Import text** — Export produces a compact, copy-pasteable
+  text blob encoding the entire graph, including your custom tag library
+  (no URL length limits, so it scales to large graphs). Paste it back in
+  via Import on any device to load the exact same graph. This is the only
+  way to save/restore a graph — there's no in-browser save/load list.
 - Starts with a small example graph
+- A dark, gold-and-bronze Path of Exile-inspired theme, including a subtle
+  procedural grain texture (no external image assets needed)
 
 ## Deploying to GitHub Pages
 This repo includes a GitHub Actions workflow (`.github/workflows/deploy.yml`)
@@ -58,9 +79,10 @@ npm run build
 npx gh-pages -d dist
 ```
 
-## Notes on saved recipes vs. shared links
-- **Saved recipes** live only in your browser's `localStorage` — they are
-  private to you and won't sync across devices or browsers.
-- **Share links** carry the full recipe in the URL itself, so they work for
-  anyone, anywhere, with no account — but the recipe data is visible to
-  anyone with the link (it's just compressed, not encrypted).
+## Notes on exported text
+Exported text can be sent anywhere (chat, email, a text file) and imported
+on any device/browser, with no account and no size limit like a URL would
+have. The text isn't encrypted, just compressed — anyone with it can decode
+it. Since there's no local save, hang on to the exported text if you want
+to come back to a graph later — closing the tab without exporting loses
+your changes.
