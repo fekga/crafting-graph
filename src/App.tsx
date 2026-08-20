@@ -28,6 +28,7 @@ import AffixEditor from './components/AffixEditor'
 import CurrencyPicker from './components/CurrencyPicker'
 import ExportImportModal from './components/ExportImportModal'
 import LocalSavesModal from './components/LocalSavesModal'
+import ItemPasteModal from './components/ItemPasteModal'
 import { findCurrencyByName, type Currency } from './data/currencies'
 
 const nodeTypes: NodeTypes = { craftNode: CraftNode }
@@ -111,6 +112,7 @@ function App() {
   const [graphName, setGraphName] = useState('My Crafting Plan')
   const [status, setStatus] = useState('')
   const [affixEditorFor, setAffixEditorFor] = useState<'new' | string | null>(null)
+  const [itemPasteOpen, setItemPasteOpen] = useState(false)
   const [tagPresets, setTagPresets] = useState<AffixTag[]>(DEFAULT_TAG_PRESETS)
   const [currencyPickerFor, setCurrencyPickerFor] = useState<'action' | 'notes' | null>(null)
   const [exportImportMode, setExportImportMode] = useState<'export' | 'import' | null>(null)
@@ -225,6 +227,16 @@ function App() {
     }
     setTagPresets(updatedPresets)
     setAffixEditorFor(null)
+  }
+
+  function handleAddFromItemPaste(modifiers: Modifier[], updatedPresets: AffixTag[], nameFromItem: string | null) {
+    if (!selectedNode) return
+    updateSelected({
+      modifiers: [...selectedNode.data.modifiers, ...modifiers],
+      ...(nameFromItem ? { label: nameFromItem } : {}),
+    })
+    setTagPresets(updatedPresets)
+    setItemPasteOpen(false)
   }
 
   function handlePickCurrency(currency: Currency) {
@@ -410,7 +422,12 @@ function App() {
 
               <div className="row-between">
                 <h3>Modifiers</h3>
-                {editMode && <button onClick={addModifier}>+ Add</button>}
+                {editMode && (
+                  <div className="modifier-header-actions">
+                    <button onClick={() => setItemPasteOpen(true)}>Paste item</button>
+                    <button onClick={addModifier}>+ Add</button>
+                  </div>
+                )}
               </div>
 
               {selectedNode.data.modifiers.length === 0 && (
@@ -525,6 +542,14 @@ function App() {
           currentGraphId={currentGraphId}
           onLoad={handleLoadLocal}
           onClose={() => setLocalSavesOpen(false)}
+        />
+      )}
+
+      {itemPasteOpen && (
+        <ItemPasteModal
+          tagPresets={tagPresets}
+          onAdd={handleAddFromItemPaste}
+          onClose={() => setItemPasteOpen(false)}
         />
       )}
     </div>

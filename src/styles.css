@@ -467,6 +467,70 @@ hr {
   padding: 5px 9px;
 }
 
+.modifier-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* --- Item paste modal --- */
+.item-paste-modal {
+  width: min(640px, 92vw);
+}
+
+.item-paste-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.item-paste-mod-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.item-paste-mod-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--border-bronze);
+  border-radius: 4px;
+  background: var(--bg-input);
+}
+
+.item-paste-mod-row input[type='checkbox'] {
+  margin-top: 3px;
+}
+
+.item-paste-mod-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item-paste-mod-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.item-paste-mod-text {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-bronze);
+  border-radius: 3px;
+  background: var(--bg-panel);
+  color: var(--text);
+  font-size: 13px;
+}
+
 /* --- Generic tag badge, colored via --chip-color / --chip-rgb custom
    properties set inline per-tag, so any user-picked color works without
    needing a matching CSS class. --- */

@@ -27,6 +27,7 @@ export const DEFAULT_TAG_PRESETS: AffixTag[] = [
   { id: 'tag-fractured', label: 'Fractured', color: '#a29160' },
   { id: 'tag-crafted', label: 'Crafted', color: '#b4b4ff' },
   { id: 'tag-corrupted', label: 'Corrupted', color: '#d20000' },
+  { id: 'tag-unique', label: 'Unique', color: '#af6025' },
 ]
 
 /** Converts a #rrggbb hex color into an "r, g, b" triple for use inside
