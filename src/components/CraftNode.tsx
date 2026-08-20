@@ -1,4 +1,5 @@
 import { Handle, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react'
+import type { MouseEvent } from 'react'
 import { findCurrencyByName } from '../data/currencies'
 import { renderNotesHtml } from '../notesMarkdown'
 import { hexToRgbTriple } from '../poeColors'
@@ -6,12 +7,41 @@ import type { CraftNodeData } from '../types'
 
 export default function CraftNode({ id, data, selected }: NodeProps<Node<CraftNodeData>>) {
   const currency = findCurrencyByName(data.action)
-  const { deleteElements } = useReactFlow()
+  const { deleteElements, getNode, addNodes } = useReactFlow<Node<CraftNodeData>>()
   const notesHtml = renderNotesHtml(data.notes)
+
+  function handleDuplicate(e: MouseEvent) {
+    e.stopPropagation()
+    const node = getNode(id)
+    if (!node) return
+    const newId = `node-${Date.now()}`
+    const clone: Node<CraftNodeData> = {
+      ...node,
+      id: newId,
+      selected: false,
+      position: { x: node.position.x + 40, y: node.position.y + 40 },
+      data: {
+        ...node.data,
+        modifiers: node.data.modifiers.map(m => ({
+          ...m,
+          id: `mod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        })),
+      },
+    }
+    addNodes(clone)
+  }
 
   return (
     <div className={`craft-node${selected ? ' craft-node-selected' : ''}`}>
       <Handle type="target" position={Position.Left} />
+
+      <button
+        className="craft-node-duplicate"
+        title="Duplicate node"
+        onClick={handleDuplicate}
+      >
+        ⧉
+      </button>
 
       <button
         className="craft-node-remove"

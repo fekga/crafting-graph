@@ -8,9 +8,11 @@ import {
   ReactFlow,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Connection,
   type Edge,
   type EdgeTypes,
+  type FinalConnectionState,
   type Node,
   type NodeTypes,
 } from '@xyflow/react'
@@ -18,12 +20,14 @@ import '@xyflow/react/dist/style.css'
 import { type ExportPayload } from './exportText'
 import { currencyShortcode, renderNotesHtml } from './notesMarkdown'
 import { DEFAULT_TAG_PRESETS, hexToRgbTriple } from './poeColors'
+import { saveGraph } from './storage'
 import type { AffixTag, CraftNodeData, Modifier } from './types'
 import CraftNode from './components/CraftNode'
 import RemovableEdge from './components/RemovableEdge'
 import AffixEditor from './components/AffixEditor'
 import CurrencyPicker from './components/CurrencyPicker'
 import ExportImportModal from './components/ExportImportModal'
+import LocalSavesModal from './components/LocalSavesModal'
 import { findCurrencyByName, type Currency } from './data/currencies'
 
 const nodeTypes: NodeTypes = { craftNode: CraftNode }
@@ -35,6 +39,21 @@ function withNodeType(n: Node<CraftNodeData>): Node<CraftNodeData> {
 
 function withEdgeType(e: Edge): Edge {
   return { ...e, type: 'removable' }
+}
+
+/** A fresh, empty graph to start from when the user clicks "New". */
+function blankGraph(): { nodes: Node<CraftNodeData>[]; edges: Edge[] } {
+  return {
+    nodes: [
+      {
+        id: `node-${Date.now()}`,
+        type: 'craftNode',
+        position: { x: 150, y: 150 },
+        data: { label: 'Start', action: 'Base item', modifiers: [], notes: '' },
+      },
+    ],
+    edges: [],
+  }
 }
 
 const initialNodes: Node<CraftNodeData>[] = [
@@ -95,8 +114,11 @@ function App() {
   const [tagPresets, setTagPresets] = useState<AffixTag[]>(DEFAULT_TAG_PRESETS)
   const [currencyPickerFor, setCurrencyPickerFor] = useState<'action' | 'notes' | null>(null)
   const [exportImportMode, setExportImportMode] = useState<'export' | 'import' | null>(null)
+  const [localSavesOpen, setLocalSavesOpen] = useState(false)
+  const [currentGraphId, setCurrentGraphId] = useState<string | null>(null)
   const [editMode, setEditMode] = useState(true)
   const notesRef = useRef<HTMLTextAreaElement>(null)
+  const { screenToFlowPosition } = useReactFlow()
 
   const selectedNode = nodes.find(n => n.id === selectedId)
 
@@ -124,6 +146,39 @@ function App() {
   const isValidConnection = useCallback(
     (conn: Connection | Edge) => conn.source !== conn.target,
     [],
+  )
+
+  // If a connection is dragged out and dropped on empty canvas (not onto
+  // another node's handle), spin up a brand new node there and wire it in,
+  // instead of just discarding the half-made connection.
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
+      if (connectionState.isValid || connectionState.toNode || !connectionState.fromNode) return
+
+      const point = 'changedTouches' in event ? event.changedTouches[0] : event
+      const position = screenToFlowPosition({ x: point.clientX, y: point.clientY })
+      const id = `node-${Date.now()}`
+      const newNode: Node<CraftNodeData> = {
+        id,
+        type: 'craftNode',
+        position: { x: position.x - 90, y: position.y - 30 },
+        data: { label: 'New crafting step', action: '', modifiers: [], notes: '' },
+      }
+
+      const fromIsTarget = connectionState.fromHandle?.type === 'target'
+      const newEdge: Edge = {
+        id: `e-${Date.now()}`,
+        source: fromIsTarget ? id : connectionState.fromNode.id,
+        target: fromIsTarget ? connectionState.fromNode.id : id,
+        type: 'removable',
+        markerEnd: { type: MarkerType.ArrowClosed },
+      }
+
+      setNodes(ns => ns.concat(newNode))
+      setEdges(eds => eds.concat(newEdge))
+      setSelectedId(id)
+    },
+    [screenToFlowPosition, setNodes, setEdges],
   )
 
   function addNode() {
@@ -223,8 +278,46 @@ function App() {
     setEdges(payload.data.edges.map(withEdgeType))
     setTagPresets(payload.data.tagPresets?.length ? payload.data.tagPresets : DEFAULT_TAG_PRESETS)
     setSelectedId(payload.data.nodes[0]?.id ?? null)
+    setCurrentGraphId(null)
     setStatus('Imported')
     setExportImportMode(null)
+  }
+
+  async function handleSaveLocal() {
+    const payload = currentExportPayload()
+    const saved = await saveGraph(payload.name, payload.data, currentGraphId ?? undefined)
+    setCurrentGraphId(saved.id)
+    setStatus('Saved locally')
+  }
+
+  async function handleSaveAsNewLocal() {
+    const payload = currentExportPayload()
+    const saved = await saveGraph(payload.name, payload.data)
+    setCurrentGraphId(saved.id)
+    setStatus('Saved as a new local save')
+  }
+
+  function handleNewGraph() {
+    if (!window.confirm('Start a new graph? Any unsaved changes to the current one will be lost.')) return
+    const { nodes: freshNodes, edges: freshEdges } = blankGraph()
+    setGraphName('New crafting plan')
+    setNodes(freshNodes)
+    setEdges(freshEdges)
+    setTagPresets(DEFAULT_TAG_PRESETS)
+    setSelectedId(freshNodes[0]?.id ?? null)
+    setCurrentGraphId(null)
+    setStatus('')
+  }
+
+  function handleLoadLocal(payload: ExportPayload, id: string) {
+    setGraphName(payload.name)
+    setNodes(payload.data.nodes.map(withNodeType))
+    setEdges(payload.data.edges.map(withEdgeType))
+    setTagPresets(payload.data.tagPresets?.length ? payload.data.tagPresets : DEFAULT_TAG_PRESETS)
+    setSelectedId(payload.data.nodes[0]?.id ?? null)
+    setCurrentGraphId(id)
+    setStatus('Loaded')
+    setLocalSavesOpen(false)
   }
 
   return (
@@ -240,6 +333,10 @@ function App() {
         </div>
         <div className="toolbar">
           <button onClick={addNode}>+ Add node</button>
+          <button onClick={handleNewGraph}>New</button>
+          <button onClick={handleSaveLocal}>Save</button>
+          {currentGraphId && <button onClick={handleSaveAsNewLocal}>Save as new</button>}
+          <button onClick={() => setLocalSavesOpen(true)}>Load</button>
           <button onClick={() => setExportImportMode('export')}>Export text</button>
           <button onClick={() => setExportImportMode('import')}>Import text</button>
           <span className="status">{status}</span>
@@ -256,6 +353,7 @@ function App() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onConnectEnd={onConnectEnd}
             isValidConnection={isValidConnection}
             onNodeClick={(_, node) => setSelectedId(node.id)}
             fitView
@@ -419,6 +517,14 @@ function App() {
           exportPayload={exportImportMode === 'export' ? currentExportPayload() : undefined}
           onImport={handleImport}
           onClose={() => setExportImportMode(null)}
+        />
+      )}
+
+      {localSavesOpen && (
+        <LocalSavesModal
+          currentGraphId={currentGraphId}
+          onLoad={handleLoadLocal}
+          onClose={() => setLocalSavesOpen(false)}
         />
       )}
     </div>

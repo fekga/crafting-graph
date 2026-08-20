@@ -7,6 +7,7 @@ export type ExportPayload = {
 }
 
 const PREFIX = 'POECRAFT1:'
+export const EXPORT_PREFIX = PREFIX
 
 /** Encodes a graph as a compact, copy-pasteable text blob (not a URL, so
  * there's no practical size ceiling like there is with URLs/query strings). */

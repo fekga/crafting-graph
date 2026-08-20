@@ -1,5 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:wght@400;500;600&display=swap');
 
+/* A font by Jos Buivenga (exljbris) -> www.exljbris.com */
+@font-face {
+  font-family: 'Fontin';
+  src: url('/fonts/Fontin-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.craft-node-label,
+.craft-node-action,
+.craft-node-mod,
+.craft-node-notes {
+  font-family: 'Fontin', sans-serif;
+}
+
+
+
 :root {
   --bg-void: #0a0806;
   --bg-panel: #16110c;
@@ -347,6 +365,36 @@ hr {
   color: #fff;
 }
 
+.craft-node-duplicate {
+  position: absolute;
+  top: -8px;
+  right: 16px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #201a10;
+  border: 1px solid var(--border-bronze-light);
+  color: var(--gold);
+  font-size: 8px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.craft-node:hover .craft-node-duplicate {
+  opacity: 1;
+}
+
+.craft-node-duplicate:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 .craft-node-row {
   display: flex;
   align-items: center;
@@ -425,7 +473,7 @@ hr {
 .tag-badge {
   flex-shrink: 0;
   font-family: 'Cinzel', serif;
-  font-size: 9.5px;
+  font-size: 8px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 2px 7px;
@@ -732,6 +780,31 @@ hr {
   margin-top: 14px;
 }
 
+.paste-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.paste-link-input {
+  flex: 1;
+  min-width: 160px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-bronze);
+  border-radius: 3px;
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.paste-link-hint {
+  margin: 0 0 10px;
+  font-size: 11px;
+}
+
 .error-text {
   color: #e2a6a3;
   font-size: 12px;
@@ -773,7 +846,7 @@ hr {
   border-top: 1px solid var(--border-bronze);
   font-size: 11px;
   line-height: 1.45;
-  color: var(--text-muted);
+  /* color: var(--text-muted); */
 }
 
 .craft-node-notes img {
@@ -1011,4 +1084,65 @@ hr {
   background: linear-gradient(180deg, #2a2115, #17130c);
   border-color: var(--border-bronze);
   color: var(--gold);
+}
+
+/* --- Local saves modal --- */
+.saved-graph-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.saved-graph-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-bronze);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.saved-graph-row-current {
+  border-color: var(--gold);
+  background: rgba(200, 170, 110, 0.08);
+}
+
+.saved-graph-info {
+  min-width: 0;
+}
+
+.saved-graph-name {
+  font-family: 'Cinzel', serif;
+  color: var(--gold-bright);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.saved-graph-current-tag {
+  font-family: 'Spectral', serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 9px;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.saved-graph-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.saved-graph-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
 }
