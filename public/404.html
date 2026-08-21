@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Crafting Graph</title>
+  <script>
+    // GitHub Pages is a static host with no server-side routing, so a
+    // fresh visit to a deep link like /crafting-graph/<slug> (used to
+    // share a graph — see src/pasteService.ts) 404s here instead of
+    // reaching the app. Redirect back to index.html with the slug
+    // preserved as a query param; main.tsx / App.tsx read that on
+    // startup, load the shared graph, then clean the URL back up.
+    (function () {
+      var base = '/crafting-graph/'
+      var path = location.pathname
+      if (path.indexOf(base) === 0) path = path.slice(base.length)
+      var slug = path.replace(/^\/+|\/+$/g, '').split('/')[0] || ''
+      var query = slug ? '?slug=' + encodeURIComponent(slug) : ''
+      location.replace(base + query + location.hash)
+    })()
+  </script>
+</head>
+<body>
+  Redirecting&hellip;
+</body>
+</html>

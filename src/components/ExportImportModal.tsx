@@ -37,8 +37,8 @@ export default function ExportImportModal({ mode, exportPayload, onImport, onClo
     setLinkBusy(true)
     setError('')
     try {
-      const url = await createPasteLink(text)
-      setLinkUrl(url)
+      const { appUrl } = await createPasteLink(text)
+      setLinkUrl(appUrl)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create a shareable link.')
     } finally {
@@ -90,7 +90,12 @@ export default function ExportImportModal({ mode, exportPayload, onImport, onClo
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      // Deliberately no onClick here: clicking the backdrop must NOT close
+      // the modal, only the explicit Close button (or a completed action)
+      // should.
+    >
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{mode === 'export' ? 'Export as text' : 'Import from text'}</h2>
@@ -123,9 +128,11 @@ export default function ExportImportModal({ mode, exportPayload, onImport, onClo
             </div>
             {linkUrl && (
               <p className="muted paste-link-hint">
-                Hosted on rentry.co. Anyone with this link can view it (and
-                edit or delete the paste — rentry doesn't ask for a login to
-                do that, so only share it with people you trust).
+                Opens straight into this graph. Backed by a rentry.co paste
+                under the hood — anyone with this link can also view (and
+                edit or delete) that paste directly, since rentry doesn't
+                ask for a login to do that, so only share it with people you
+                trust.
               </p>
             )}
           </>
@@ -141,7 +148,7 @@ export default function ExportImportModal({ mode, exportPayload, onImport, onClo
                 className="paste-link-input"
                 value={importUrl}
                 onChange={e => setImportUrl(e.target.value)}
-                placeholder="Paste a rentry.co link…"
+                placeholder="Paste a share link (or a rentry.co link)…"
               />
               <button onClick={handleFetchLink} disabled={importBusy || !looksLikePasteUrl(importUrl)}>
                 {importBusy ? 'Fetching\u2026' : 'Fetch link'}

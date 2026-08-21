@@ -24,7 +24,12 @@ Outputs a fully static site to `dist/`. Open `dist/index.html` directly, or
 serve the folder with any static file host.
 
 ## Features
-- Add crafting nodes, connect them with arrows
+- Add crafting nodes, connect them with arrows — the arrowhead always
+  marks the target end, even for a connection that loops backward
+- Give a connection a short text label (click/hover it to edit) — the 🖼
+  button on the label inserts a currency/item icon into it, same as notes;
+  toggle "Animate edges" in the toolbar for a marching-dash line across
+  the whole graph
 - Build your own modifiers with the "+ Add" affix editor: write the mod
   text yourself, pick its text color from a Path of Exile-inspired palette
   (or any custom hex/color-wheel value), and attach any number of tags —
@@ -33,26 +38,44 @@ serve the folder with any static file host.
   own custom tags too. A modifier can carry several tags at once (e.g.
   Prefix + Fractured).
 - Currency icons — pick from ~140 real currency icons (orbs, shards,
-  essences, fossils, resonators, catalysts, oils, omens), sourced from the
-  [PoE Wiki's currency icon files](https://www.poewiki.net/wiki/Category:Currency_item_icons)
+  essences, fossils, resonators, catalysts, oils, omens), plus a "Browse
+  all item art" tab covering every item in the game (uniques, base types,
+  gems, flasks, and more), all sourced from
+  [repoe-fork](https://repoe-fork.github.io/)'s art tree and item data
+  export — no external services, no API keys
+- Real item names, not internal codenames — "InjectorBelt" shows as
+  "Mageblood", resolved against repoe-fork's unique-item and base-item
+  catalogs
+- Recursive search in the art browser: search a category (or everything)
+  and it crawls every subfolder, not just the one you're in
+- Give any step a cost (currency, amount, chance of success) and see a
+  running total across the whole graph, per currency
+- Adjustable icon size for the item shown on each node (currency icons
+  stay compact)
 - Embed currency icons inside notes too, via the "+ Currency icon" button
   in the notes toolbar (uses a `{{currency:Name}}` shortcode under the hood)
 - Notes support Markdown (bold, lists, links, headings, etc.)
 - A node's notes (rendered, with icons) show directly on the graph, not
   just in the sidebar
-- One **Edit / Preview** toggle for the whole side panel: Edit shows the
-  normal editable form; Preview shows a clean read-only rendering of the
-  same step (name, action + icon, modifiers, and rendered notes). The graph
-  canvas itself always renders in preview form — there's no separate
-  edit-on-canvas mode.
 - Remove a node with the × button that appears on hover; remove a
   connection with the × button that appears on its midpoint (or select it
   and press Backspace/Delete)
+- **New** resets to a single starting node; **Clear all** empties the
+  canvas completely. Both reset the URL to `.../crafting-graph/new` — the
+  app's default URL when there's no shared graph loaded.
 - **Export text / Import text** — Export produces a compact, copy-pasteable
   text blob encoding the entire graph, including your custom tag library
   (no URL length limits, so it scales to large graphs). Paste it back in
-  via Import on any device to load the exact same graph. This is the only
-  way to save/restore a graph — there's no in-browser save/load list.
+  via Import on any device to load the exact same graph.
+- **Shareable links** — "Create shareable link" uploads the export text to
+  rentry.co and hands back a link on this app's own domain, e.g.
+  `https://fekga.github.io/crafting-graph/hello`. Opening that link loads
+  the app with the graph already in, rather than the bare rentry page.
+  (GitHub Pages has no server-side routing, so `public/404.html` bounces a
+  fresh visit to a link like that back to the app with the slug preserved.)
+  The Import tab accepts either that link or a raw rentry.co one.
+- Save/load named graphs locally in the browser, or export text to carry a
+  graph between devices
 - Starts with a small example graph
 - A dark, gold-and-bronze Path of Exile-inspired theme, including a subtle
   procedural grain texture (no external image assets needed)
@@ -83,6 +106,5 @@ npx gh-pages -d dist
 Exported text can be sent anywhere (chat, email, a text file) and imported
 on any device/browser, with no account and no size limit like a URL would
 have. The text isn't encrypted, just compressed — anyone with it can decode
-it. Since there's no local save, hang on to the exported text if you want
-to come back to a graph later — closing the tab without exporting loses
-your changes.
+it. Local saves live only in that browser's `localStorage`, so export text
+if you want a copy that survives clearing site data or moving devices.

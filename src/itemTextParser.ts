@@ -63,7 +63,6 @@ const INLINE_LEADING_TAG_RE = /^\{([a-z][a-z0-9: ._-]*)\}\s*/i
 const KNOWN_FLAGS = new Set(
   [
     'corrupted',
-    'corruption',
     'mirrored',
     'unidentified',
     'duplicated',
@@ -91,8 +90,6 @@ const ORIGIN_KEYWORD_RE: { re: RegExp; label: string }[] = [
   { re: /\bprefix\b/, label: 'Prefix' },
   { re: /\bsuffix\b/, label: 'Suffix' },
   { re: /\bveiled\b/, label: 'Veiled' },
-  { re: /\bcorruption\b/, label: 'Corrupted' },
-  { re: /\bunique\b/, label: 'Unique' },
 ]
 
 /** Extracts origin tags (Prefix/Suffix/Implicit/Fractured/Crafted/...) from
@@ -122,7 +119,7 @@ function normalizeInlineToken(raw: string): string {
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase()
 }
 
-const KNOWN_ORIGIN_LOWER = ['implicit', 'crafted', 'fractured', 'enchant', 'enchanted', 'scourge', 'veiled', 'corrupted', 'corruption', 'unique']
+const KNOWN_ORIGIN_LOWER = ['implicit', 'crafted', 'fractured', 'enchant', 'enchanted', 'scourge', 'veiled', 'corrupted']
 
 /** Strips any PoB-style inline `{...}` / trailing `(implicit)` markers that
  * live on the mod line itself (as opposed to a preceding header line). */

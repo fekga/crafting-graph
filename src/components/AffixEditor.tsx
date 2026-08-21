@@ -82,7 +82,12 @@ export default function AffixEditor({ modifier, tagPresets, onSave, onClose }: P
   const editingPreset = presets.find(t => t.id === editingPresetId) ?? null
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      // Deliberately no onClick here: clicking the backdrop must NOT close
+      // the modal, only the explicit Close button (or a completed action)
+      // should.
+    >
       <div className="modal affix-editor-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{isEditing ? 'Edit modifier' : 'Build a modifier'}</h2>

@@ -4,19 +4,14 @@ export type Currency = {
   id: string
   name: string
   category: CurrencyCategory
-  icon: string
-}
-
-// Icon URLs follow PoE Wiki's documented file-naming convention
-// ("File:<Item Name> inventory icon.png"), served via MediaWiki's stable
-// Special:FilePath redirect. Source: https://www.poewiki.net/wiki/Category:Currency_item_icons
-function iconUrl(itemName: string): string {
-  const file = `${itemName.replace(/ /g, '_')}_inventory_icon.png`
-  return `https://www.poewiki.net/wiki/Special:FilePath/${encodeURIComponent(file).replace(/%2F/g, '/')}`
 }
 
 function slug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+}
+
+function asCurrency(names: string[], category: CurrencyCategory): Currency[] {
+  return names.map(name => ({ id: slug(name), name, category }))
 }
 
 const ORBS = [
@@ -168,7 +163,6 @@ const OILS = [
   'Prismatic Oil',
 ]
 
-// Only the subset confirmed present on the wiki's currency-icon category page
 const OMENS = [
   'Omen of Acceleration',
   'Omen of Adrenaline',
@@ -183,31 +177,26 @@ const OMENS = [
   'Omen of Refreshment',
 ]
 
-function build(names: string[], category: CurrencyCategory): Currency[] {
-  return names.map(name => ({
-    id: slug(name),
-    name,
-    category,
-    icon: iconUrl(name),
-  }))
-}
-
 export const CURRENCIES: Currency[] = [
-  ...build(ORBS, 'orb'),
-  ...build(SHARDS, 'shard'),
-  ...build(ESSENCES, 'essence'),
-  ...build(FOSSILS, 'fossil'),
-  ...build(RESONATORS, 'resonator'),
-  ...build(CATALYSTS, 'catalyst'),
-  ...build(OILS, 'oil'),
-  ...build(OMENS, 'omen'),
+  ...asCurrency(ORBS, 'orb'),
+  ...asCurrency(SHARDS, 'shard'),
+  ...asCurrency(ESSENCES, 'essence'),
+  ...asCurrency(FOSSILS, 'fossil'),
+  ...asCurrency(RESONATORS, 'resonator'),
+  ...asCurrency(CATALYSTS, 'catalyst'),
+  ...asCurrency(OILS, 'oil'),
+  ...asCurrency(OMENS, 'omen'),
 ]
 
 /** Looks up a currency by exact (case-insensitive) name match, e.g. to show
- * an icon next to a node's freeform "action" text if it happens to match. */
+ * an icon next to a node's freeform "action" text if it happens to match,
+ * or to decide whether {{currency:Name}} in notes is a real currency
+ * before trying to render it as one. Icon resolution itself now happens
+ * dynamically by name (see iconResolve.ts / data/itemNames.ts) rather
+ * than from a hand-typed path table here — that table was the source of
+ * a few currencies pointing at the wrong (or no) icon. */
 export function findCurrencyByName(name: string): Currency | undefined {
   const target = name.trim().toLowerCase()
   if (!target) return undefined
   return CURRENCIES.find(c => c.name.toLowerCase() === target)
 }
-

@@ -33,7 +33,12 @@ export default function LocalSavesModal({ currentGraphId, onLoad, onClose }: Pro
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      // Deliberately no onClick here: clicking the backdrop must NOT close
+      // the modal, only the explicit Close button (or a completed action)
+      // should.
+    >
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Graphs saved on this device</h2>

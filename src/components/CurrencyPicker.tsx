@@ -1,68 +1,43 @@
-import { useMemo, useState } from 'react'
-import fuzzysort from 'fuzzysort'
-import { CURRENCIES, type Currency } from '../data/currencies'
+import { rememberPickedItem } from '../data/itemArt'
+import ItemArtBrowser from './ItemArtBrowser'
+
+export type PickResult = { name: string; path?: string }
 
 type Props = {
-  onPick: (currency: Currency) => void
+  onPick: (result: PickResult) => void
   onClose: () => void
+  /** Heading shown in the modal, so it's clear which field is being set
+   * (action, a note's inline icon, or a step's cost currency). */
+  title?: string
 }
 
-const GROUPS: { key: Currency['category']; label: string }[] = [
-  { key: 'orb', label: 'Orbs' },
-  { key: 'shard', label: 'Shards' },
-  { key: 'essence', label: 'Essences' },
-  { key: 'fossil', label: 'Fossils' },
-  { key: 'resonator', label: 'Resonators' },
-  { key: 'catalyst', label: 'Catalysts' },
-  { key: 'oil', label: 'Oils' },
-  { key: 'omen', label: 'Omens' },
-]
-
-export default function CurrencyPicker({ onPick, onClose }: Props) {
-  const [query, setQuery] = useState('')
-
-  const filtered = useMemo(() => {
-    if (!query.trim()) return CURRENCIES
-    const found = fuzzysort.go(query, CURRENCIES, { key: 'name', limit: 100, threshold: 0 })
-    return found.map(r => r.obj)
-  }, [query])
+export default function CurrencyPicker({ onPick, onClose, title = 'Choose an icon' }: Props) {
+  function handlePick(path: string, label: string) {
+    rememberPickedItem(label, path)
+    onPick({ name: label, path })
+  }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      // Deliberately no onClick here: clicking the backdrop must NOT close
+      // the modal, only the explicit Close button (or a completed action)
+      // should.
+    >
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Choose a currency</h2>
+          <h2>{title}</h2>
           <button onClick={onClose}>Close</button>
         </div>
 
-        <input
-          autoFocus
-          className="modal-search"
-          placeholder="Search currency... e.g. 'chaos', 'fosil', 'essence of greed'"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-        />
-
-        <div className="currency-groups">
-          {GROUPS.map(group => {
-            const items = filtered.filter(c => c.category === group.key)
-            if (items.length === 0) return null
-            return (
-              <div key={group.key}>
-                <h3 className="currency-group-title">{group.label}</h3>
-                <div className="currency-grid">
-                  {items.map(c => (
-                    <button key={c.id} className="currency-item" onClick={() => onPick(c)} title={c.name}>
-                      <img src={c.icon} alt="" loading="lazy" />
-                      <span>{c.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-          {filtered.length === 0 && <p className="muted">No matching currency.</p>}
-        </div>
+        <p className="muted picker-browse-hint">
+          Every 2D item icon from the game, sourced from{' '}
+          <a href="https://repoe-fork.github.io/Art/2DItems/" target="_blank" rel="noreferrer">
+            repoe-fork.github.io
+          </a>
+          . Search across everything, or browse by category.
+        </p>
+        <ItemArtBrowser onPick={handlePick} />
       </div>
     </div>
   )

@@ -19,6 +19,7 @@
 
 
 :root {
+  color-scheme: dark;
   --bg-void: #0a0806;
   --bg-panel: #16110c;
   --bg-panel-raised: #1e1811;
@@ -129,6 +130,16 @@ h1 {
   margin: 0 0 6px;
   font-size: 19px;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-favicon {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 h2 {
@@ -166,6 +177,41 @@ h3 {
   min-width: 80px;
   font-family: 'Spectral', serif;
   font-style: italic;
+}
+
+.icon-size-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: 'Cinzel', serif;
+}
+
+.icon-size-control input[type="range"] {
+  width: 90px;
+  accent-color: var(--gold, #c8aa6e);
+}
+
+.animate-edges-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: 'Cinzel', serif;
+  cursor: pointer;
+}
+
+.animate-edges-control input[type="checkbox"] {
+  accent-color: var(--gold, #c8aa6e);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
 }
 
 main {
@@ -227,9 +273,21 @@ main {
 
 .react-flow__handle {
   background: var(--gold);
-  border: 1px solid var(--bg-void);
-  width: 8px;
-  height: 8px;
+  border: 2px solid var(--bg-void);
+  width: 13px;
+  height: 13px;
+}
+
+.react-flow__handle.target {
+  background: var(--gold-bright);
+}
+
+.react-flow__handle.source {
+  background: var(--gold);
+}
+
+.react-flow__handle:hover {
+  background: #fff;
 }
 
 aside {
@@ -410,6 +468,13 @@ hr {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
 }
 
+.craft-node-icon-item {
+  max-width: var(--item-icon-size, 96px);
+  max-height: var(--item-icon-size, 96px);
+  width: auto;
+  height: auto;
+}
+
 .craft-node-label {
   font-weight: 600;
   font-family: 'Cinzel', serif;
@@ -439,6 +504,112 @@ hr {
   height: 26px;
   object-fit: contain;
   flex-shrink: 0;
+}
+
+/* --- Cost row (sidebar) --- */
+.cost-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cost-row input {
+  width: auto;
+}
+
+.cost-row input[type="text"],
+.cost-row input:not([type]) {
+  flex: 1;
+  min-width: 100px;
+}
+
+.cost-amount {
+  width: 76px !important;
+  flex: none;
+}
+
+.cost-chance {
+  width: 66px !important;
+  flex: none;
+}
+
+.cost-chance-suffix {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: -3px;
+}
+
+/* Native number-input spin arrows default to a stark white/black look
+ * that clashes with the theme — recolor them toward the gold accent
+ * instead (Firefox doesn't expose enough to theme its version, so this
+ * only affects Chromium/WebKit browsers; it's a harmless no-op elsewhere). */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 1;
+  filter: invert(66%) sepia(46%) saturate(430%) hue-rotate(358deg) brightness(1.05);
+  cursor: pointer;
+}
+
+/* --- Cost chip on the node card --- */
+.craft-node-cost {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-bronze);
+  font-size: 11px;
+  color: var(--gold);
+}
+
+.craft-node-cost-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.craft-node-cost-chance {
+  color: var(--text-muted);
+}
+
+/* --- Total cost bar --- */
+.total-cost-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border-bronze);
+  background: var(--bg-panel);
+}
+
+.total-cost-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: 'Cinzel', serif;
+  flex-shrink: 0;
+}
+
+.total-cost-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-bronze);
+  border-radius: 12px;
+  background: var(--bg-panel-raised);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.total-cost-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 /* --- Modifier rows --- */
@@ -573,6 +744,7 @@ hr {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   padding: 20px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
@@ -662,30 +834,8 @@ hr {
   color: var(--text);
 }
 
-/* --- Currency picker --- */
-.currency-groups {
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.currency-group-title {
-  margin: 0 0 9px;
-  color: var(--gold);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border-bottom: 1px solid var(--border-bronze);
-  padding-bottom: 6px;
-}
-
-.currency-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 8px;
-}
-
+/* --- Currency / item picker grid entries (used by ItemArtBrowser's
+ * results, both the browse view and search results) --- */
 .currency-item {
   display: flex;
   flex-direction: column;
@@ -703,7 +853,8 @@ hr {
   background: rgba(200, 170, 110, 0.08);
 }
 
-.currency-item img {
+.currency-item img,
+.currency-item canvas {
   width: 32px;
   height: 32px;
   object-fit: contain;
@@ -714,6 +865,110 @@ hr {
   font-size: 11px;
   line-height: 1.25;
   color: var(--text);
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.art-item-folder {
+  font-size: 9.5px !important;
+  color: var(--text-dim) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.picker-browse-hint {
+  margin-top: 0;
+  font-size: 12px;
+}
+
+.picker-browse-hint a {
+  color: var(--gold);
+}
+
+/* --- Item art browser (folder tree from repoe-fork.github.io) --- */
+.art-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+}
+
+.art-browser-crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.art-crumb {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  color: var(--gold);
+  text-transform: none;
+  font-family: 'Spectral', serif;
+}
+
+.art-crumb:disabled {
+  color: var(--text);
+  opacity: 1;
+  cursor: default;
+}
+
+.art-crumb-sep {
+  color: var(--text-muted);
+  margin: 0 2px;
+}
+
+.art-refresh {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* The single scroll container for everything below the search box —
+ * status text and results together, so the results area doesn't shrink
+ * to near-nothing whenever a status line ("Searching — 12 so far…",
+ * "Showing partial results…") is also on screen. */
+.art-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.art-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.art-grid:empty {
+  display: none;
+}
+
+.art-folder {
+  padding: 10px 8px;
+  text-align: left;
+  text-transform: none;
+  font-family: 'Spectral', serif;
+  background: rgba(255, 255, 255, 0.015);
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.art-folder:hover {
+  border-color: var(--gold);
+  background: rgba(200, 170, 110, 0.08);
 }
 
 /* Scrollbars, for a bit more atmosphere in webkit browsers */
@@ -736,10 +991,81 @@ hr {
 }
 
 /* --- Removable edge --- */
-.edge-remove {
+.edge-toolbar {
   position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.edge-label-badge,
+.edge-label-input {
+  pointer-events: all;
+}
+
+.edge-label-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bronze);
+  color: var(--text);
+  font-size: 11px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.edge-label-badge img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
+.edge-label-input {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--gold);
+  color: var(--text);
+  font-size: 11px;
+  min-width: 0;
+}
+
+.edge-label-input:focus {
+  outline: none;
+  border-color: var(--gold-bright);
+}
+
+.edge-icon-pick {
   width: 22px;
   height: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 50%;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bronze);
+  color: var(--text);
+  font-size: 11px;
+  pointer-events: all;
+}
+
+.edge-icon-pick:hover {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+.edge-remove {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
   padding: 0;
   border-radius: 50%;
   line-height: 1;
@@ -752,7 +1078,6 @@ hr {
   font-size: 14px;
   opacity: 0;
   pointer-events: none;
-  z-index: 5;
   transition: opacity 0.1s;
 }
 
@@ -782,44 +1107,6 @@ hr {
   min-height: 90px;
   font-family: 'Spectral', serif;
   line-height: 1.5;
-}
-
-.notes-preview {
-  min-height: 90px;
-  border: 1px solid var(--border-bronze);
-  border-radius: 3px;
-  background: var(--bg-input);
-  padding: 10px 12px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--text);
-}
-
-.notes-preview img {
-  width: 20px;
-  height: 20px;
-  object-fit: contain;
-  vertical-align: text-bottom;
-  margin: 0 2px;
-}
-
-.notes-preview p {
-  margin: 0 0 10px;
-}
-
-.notes-preview p:last-child {
-  margin-bottom: 0;
-}
-
-.notes-preview code {
-  background: rgba(255, 255, 255, 0.06);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 12px;
-}
-
-.notes-preview a {
-  color: var(--gold);
 }
 
 /* --- Export / Import modal --- */
@@ -913,7 +1200,15 @@ hr {
   /* color: var(--text-muted); */
 }
 
-.craft-node-notes img {
+.craft-node-notes img[alt="item"] {
+  max-width: 64px;
+  max-height: 64px;
+  object-fit: contain;
+  vertical-align: text-bottom;
+  margin: 0 2px;
+}
+
+.craft-node-notes img:not([alt="item"]) {
   width: 16px;
   height: 16px;
   object-fit: contain;
@@ -934,22 +1229,6 @@ hr {
   margin: 0 0 6px;
   padding-left: 16px;
 }
-
-/* --- Sidebar preview mode (read-only rendering of a field) --- */
-.preview-text {
-  margin: 0;
-  padding: 9px 0;
-  color: var(--text);
-  font-size: 13px;
-}
-
-.preview-name {
-  font-family: 'Cinzel', serif;
-  color: var(--gold-bright);
-  font-size: 14px;
-}
-
-
 
 /* --- Affix editor modal --- */
 .affix-editor-modal {
