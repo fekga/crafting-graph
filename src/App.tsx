@@ -200,11 +200,11 @@ function App() {
     const startedFromTarget = dragStartNodeId.current !== null && dragStartNodeId.current !== connection.source
     const oriented: Connection = startedFromTarget
       ? {
-        source: connection.target,
-        target: connection.source,
-        sourceHandle: oppositeTypeHandleId(connection.targetHandle, 'target') ?? null,
-        targetHandle: oppositeTypeHandleId(connection.sourceHandle, 'source') ?? null,
-      }
+          source: connection.target,
+          target: connection.source,
+          sourceHandle: oppositeTypeHandleId(connection.targetHandle, 'target') ?? null,
+          targetHandle: oppositeTypeHandleId(connection.sourceHandle, 'source') ?? null,
+        }
       : connection
     setEdges(eds =>
       addEdge(
@@ -493,7 +493,7 @@ function App() {
       <header>
         <div>
           <h1>
-            <img src="favicon.png" alt="" className="app-favicon" />
+            <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="" className="app-favicon" />
             Crafting Graph
           </h1>
           <input
