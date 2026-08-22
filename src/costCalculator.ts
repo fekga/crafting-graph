@@ -11,26 +11,24 @@ export type CostTotal = {
   iconPath?: string
 }
 
-/** Aggregates every node's cost into a per-currency expected total. Nodes
- * without a cost, or with an empty currency name or non-positive amount,
- * are skipped. */
+/** Aggregates every node's costs into a per-currency expected total. Cost
+ * entries with an empty currency name or non-positive amount are skipped. */
 export function computeTotalCost(nodes: Node<CraftNodeData>[]): CostTotal[] {
   const totals = new Map<string, number>()
   // Remembers the first explicit icon override seen for each currency
   // name, so the total-cost bar respects a picked/removed icon the same
-  // way a single node's cost row does, rather than always re-resolving
-  // by name.
+  // way a single cost row does, rather than always re-resolving by name.
   const overrides = new Map<string, string>()
 
   for (const node of nodes) {
-    const cost = node.data.cost
-    if (!cost) continue
-    const currency = cost.currency.trim()
-    if (!currency || !(cost.amount > 0)) continue
-    const chance = cost.chance > 0 && cost.chance <= 100 ? cost.chance : 100
-    const expected = cost.amount / (chance / 100)
-    totals.set(currency, (totals.get(currency) ?? 0) + expected)
-    if (cost.iconPath !== undefined && !overrides.has(currency)) overrides.set(currency, cost.iconPath)
+    for (const cost of node.data.costs ?? []) {
+      const currency = cost.currency.trim()
+      if (!currency || !(cost.amount > 0)) continue
+      const chance = cost.chance > 0 && cost.chance <= 100 ? cost.chance : 100
+      const expected = cost.amount / (chance / 100)
+      totals.set(currency, (totals.get(currency) ?? 0) + expected)
+      if (cost.iconPath !== undefined && !overrides.has(currency)) overrides.set(currency, cost.iconPath)
+    }
   }
 
   return Array.from(totals.entries())

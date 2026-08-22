@@ -48,9 +48,10 @@ export type CraftNodeData = {
    * CraftCost.iconPath for the full explanation of the undefined/''/path
    * distinction. */
   actionIconPath?: string
-  /** Optional — not every step costs currency (e.g. a plain "Base item"
-   * starting node). */
-  cost?: CraftCost
+  /** Zero or more currency costs for this step — e.g. a fossil and a
+   * resonator used together, or several essences tried in sequence.
+   * Undefined/empty = no cost set. */
+  costs?: CraftCost[]
 }
 
 export type GraphData = {

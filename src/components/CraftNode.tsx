@@ -16,7 +16,6 @@ export default function CraftNode({ id, data, selected }: NodeProps<Node<CraftNo
   useItemNamesLoaded()
   const actionIconPath = resolveFieldIconPath(data.action, data.actionIconPath)
   const actionIsCurrency = isCurrency(data.action)
-  const costIconPath = data.cost ? resolveFieldIconPath(data.cost.currency, data.cost.iconPath) : undefined
   const { deleteElements, getNode, addNodes } = useReactFlow<Node<CraftNodeData>>()
   const notesHtml = renderNotesHtml(data.notes)
 
@@ -112,13 +111,22 @@ export default function CraftNode({ id, data, selected }: NodeProps<Node<CraftNo
         </div>
       )}
 
-      {data.cost && data.cost.currency && data.cost.amount > 0 && (
-        <div className="craft-node-cost" title={`${data.cost.chance}% chance per attempt`}>
-          {costIconPath && <IconImage className="craft-node-cost-icon" path={costIconPath} alt="" />}
-          <span>
-            {data.cost.amount}× {data.cost.currency}
-            {data.cost.chance < 100 && <span className="craft-node-cost-chance"> @ {data.cost.chance}%</span>}
-          </span>
+      {data.costs && data.costs.filter(c => c.currency && c.amount > 0).length > 0 && (
+        <div className="craft-node-costs">
+          {data.costs
+            .filter(c => c.currency && c.amount > 0)
+            .map((cost, i) => {
+              const costIconPath = resolveFieldIconPath(cost.currency, cost.iconPath)
+              return (
+                <div className="craft-node-cost" key={i} title={`${cost.chance}% chance per attempt`}>
+                  {costIconPath && <IconImage className="craft-node-cost-icon" path={costIconPath} alt="" />}
+                  <span>
+                    {cost.amount}× {cost.currency}
+                    {cost.chance < 100 && <span className="craft-node-cost-chance"> @ {cost.chance}%</span>}
+                  </span>
+                </div>
+              )
+            })}
         </div>
       )}
 

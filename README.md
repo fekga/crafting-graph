@@ -64,8 +64,9 @@ serve the folder with any static file host.
 - A picked icon sticks to the action/cost field even if you edit the text
   next to it afterward (e.g. picking Mageblood's icon, then renaming the
   field to "Mageblood (6-linked)") — "Remove icon" clears it explicitly
-- Give any step a cost (currency, amount, chance of success) and see a
-  running total across the whole graph, per currency
+- Give any step one or more costs (currency, amount, chance of success —
+  e.g. a fossil *and* a resonator used together) and see a running total
+  across the whole graph, per currency
 - Adjustable icon size for the item shown on each node (currency icons
   stay compact)
 - Embed currency icons inside notes too, via the "+ Currency icon" button

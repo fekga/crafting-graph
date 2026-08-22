@@ -23,7 +23,7 @@ import { currencyShortcode, itemArtShortcode } from './notesMarkdown'
 import { DEFAULT_TAG_PRESETS, hexToRgbTriple } from './poeColors'
 import { clearSlugFromUrl, fetchPasteText, normalizeUrlToSlug, pasteUrlFromSlug, slugFromCurrentLocation } from './pasteService'
 import { saveGraph } from './storage'
-import type { AffixTag, CraftNodeData, Modifier } from './types'
+import type { AffixTag, CraftCost, CraftNodeData, Modifier } from './types'
 import CraftNode from './components/CraftNode'
 import RemovableEdge from './components/RemovableEdge'
 import AffixEditor from './components/AffixEditor'
@@ -57,6 +57,14 @@ function clamp(value: number, min: number, max: number): number {
 const EDGE_MARKER = { type: MarkerType.ArrowClosed, width: 22, height: 22 }
 
 function withNodeType(n: Node<CraftNodeData>): Node<CraftNodeData> {
+  // Nodes saved before multiple-costs-per-node existed have a singular
+  // `cost` field instead of `costs` — migrate it into a one-item list
+  // rather than silently dropping it.
+  const data = n.data as CraftNodeData & { cost?: CraftCost }
+  if (data.costs === undefined && data.cost) {
+    const { cost, ...rest } = data
+    return { ...n, type: 'craftNode', data: { ...rest, costs: [cost] } }
+  }
   return { ...n, type: 'craftNode' }
 }
 
@@ -124,7 +132,7 @@ const initialNodes: Node<CraftNodeData>[] = [
         },
       ],
       notes: 'Use {{currency:Orb of Annulment}} first if too many junk mods show up.',
-      cost: { currency: 'Essence of Horror', amount: 1, chance: 100 },
+      costs: [{ currency: 'Essence of Horror', amount: 1, chance: 100 }],
     },
   },
 ]
@@ -155,7 +163,7 @@ function App() {
   const [itemPasteOpen, setItemPasteOpen] = useState(false)
   const [tagPresets, setTagPresets] = useState<AffixTag[]>(DEFAULT_TAG_PRESETS)
   const [currencyPickerFor, setCurrencyPickerFor] = useState<
-    'action' | 'notes' | 'cost' | { edgeId: string } | null
+    'action' | 'notes' | { edgeId: string } | { costIndex: number } | null
   >(null)
   const [exportImportMode, setExportImportMode] = useState<'export' | 'import' | null>(null)
   const [localSavesOpen, setLocalSavesOpen] = useState(false)
@@ -222,9 +230,6 @@ function App() {
   const selectedNode = nodes.find(n => n.id === selectedId)
   const selectedActionIconPath = selectedNode
     ? resolveFieldIconPath(selectedNode.data.action, selectedNode.data.actionIconPath)
-    : undefined
-  const selectedCostIconPath = selectedNode?.data.cost
-    ? resolveFieldIconPath(selectedNode.data.cost.currency, selectedNode.data.cost.iconPath)
     : undefined
   const totalCost = computeTotalCost(nodes)
   // The animated dash is a graph-wide display toggle, not stored per edge
@@ -534,16 +539,16 @@ function App() {
     const shortcode = result.path ? itemArtShortcode(result.path, result.name) : currencyShortcode(result.name)
     if (currencyPickerFor === 'notes') {
       insertIntoNotes(shortcode)
-    } else if (currencyPickerFor === 'cost') {
-      updateSelected({
-        cost: {
-          currency: result.name,
-          amount: selectedNode?.data.cost?.amount ?? 1,
-          chance: selectedNode?.data.cost?.chance ?? 100,
-          iconPath: result.path ?? '',
-        },
+    } else if (currencyPickerFor && typeof currencyPickerFor === 'object' && 'costIndex' in currencyPickerFor) {
+      const { costIndex } = currencyPickerFor
+      const current = selectedNode?.data.costs?.[costIndex]
+      updateCost(costIndex, {
+        currency: result.name,
+        amount: current?.amount ?? 1,
+        chance: current?.chance ?? 100,
+        iconPath: result.path ?? '',
       })
-    } else if (currencyPickerFor && typeof currencyPickerFor === 'object') {
+    } else if (currencyPickerFor && typeof currencyPickerFor === 'object' && 'edgeId' in currencyPickerFor) {
       const { edgeId } = currencyPickerFor
       setEdges(eds =>
         eds.map(e =>
@@ -556,15 +561,33 @@ function App() {
     setCurrencyPickerFor(null)
   }
 
-  function updateCost(patch: Partial<{ currency: string; amount: number; chance: number; iconPath: string }>) {
+  /** Replaces one cost entry (by index) with `patch` merged over its
+   * current values — used for all the per-row edits (currency text,
+   * amount, chance, icon). */
+  function updateCost(
+    index: number,
+    patch: Partial<{ currency: string; amount: number; chance: number; iconPath: string }>,
+  ) {
     if (!selectedNode) return
-    const current = selectedNode.data.cost ?? { currency: '', amount: 1, chance: 100 }
-    updateSelected({ cost: { ...current, ...patch } })
+    const costs = selectedNode.data.costs ?? []
+    const current = costs[index] ?? { currency: '', amount: 1, chance: 100 }
+    const next = costs.slice()
+    next[index] = { ...current, ...patch }
+    updateSelected({ costs: next })
   }
 
-  function clearCost() {
+  /** Appends a new blank cost row — a node can have several (e.g. a
+   * fossil plus a resonator used together). */
+  function addCost() {
     if (!selectedNode) return
-    updateSelected({ cost: undefined })
+    updateSelected({ costs: [...(selectedNode.data.costs ?? []), { currency: '', amount: 1, chance: 100 }] })
+  }
+
+  /** Removes one cost row entirely (not just its icon). */
+  function removeCost(index: number) {
+    if (!selectedNode) return
+    const next = (selectedNode.data.costs ?? []).filter((_, i) => i !== index)
+    updateSelected({ costs: next.length > 0 ? next : undefined })
   }
 
   /** Clears the icon entirely — explicitly "no icon", not just resetting
@@ -575,9 +598,8 @@ function App() {
     updateSelected({ actionIconPath: '' })
   }
 
-  function removeCostIcon() {
-    if (!selectedNode?.data.cost) return
-    updateCost({ iconPath: '' })
+  function removeCostIcon(index: number) {
+    updateCost(index, { iconPath: '' })
   }
 
   function insertIntoNotes(snippet: string) {
@@ -876,46 +898,53 @@ function App() {
               </div>
 
               <div className="row-between">
-                <label style={{ margin: 0 }}>Cost</label>
-                {selectedNode.data.cost && <button onClick={clearCost}>Remove cost</button>}
+                <label style={{ margin: 0 }}>Costs</label>
+                <button onClick={addCost}>+ Add cost</button>
               </div>
-              {selectedNode.data.cost ? (
-                <div className="cost-row">
-                  {selectedCostIconPath && <IconImage className="action-icon" path={selectedCostIconPath} alt="" />}
-                  <input
-                    value={selectedNode.data.cost.currency}
-                    onChange={e => updateCost({ currency: e.target.value })}
-                    placeholder="e.g. Chaos Orb"
-                  />
-                  <button onClick={() => setCurrencyPickerFor('cost')}>Pick</button>
-                  {selectedCostIconPath && (
-                    <button onClick={removeCostIcon} title="Remove this icon">
-                      Remove icon
-                    </button>
-                  )}
-                  <input
-                    className="cost-amount"
-                    type="number"
-                    min={0}
-                    step="any"
-                    value={selectedNode.data.cost.amount}
-                    onChange={e => updateCost({ amount: Number(e.target.value) })}
-                    title="Amount per attempt"
-                  />
-                  <input
-                    className="cost-chance"
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={selectedNode.data.cost.chance}
-                    onChange={e => updateCost({ chance: Number(e.target.value) })}
-                    title="Chance of success (%)"
-                  />
-                  <span className="cost-chance-suffix">%</span>
-                </div>
-              ) : (
-                <button onClick={() => updateCost({ currency: '', amount: 1, chance: 100 })}>+ Add cost</button>
+              {(selectedNode.data.costs ?? []).length === 0 && (
+                <p className="muted">No cost set.</p>
               )}
+              {(selectedNode.data.costs ?? []).map((cost, i) => {
+                const costIconPath = resolveFieldIconPath(cost.currency, cost.iconPath)
+                return (
+                  <div className="cost-row" key={i}>
+                    {costIconPath && <IconImage className="action-icon" path={costIconPath} alt="" />}
+                    <input
+                      value={cost.currency}
+                      onChange={e => updateCost(i, { currency: e.target.value })}
+                      placeholder="e.g. Chaos Orb"
+                    />
+                    <button onClick={() => setCurrencyPickerFor({ costIndex: i })}>Pick</button>
+                    {costIconPath && (
+                      <button onClick={() => removeCostIcon(i)} title="Remove this icon">
+                        Remove icon
+                      </button>
+                    )}
+                    <input
+                      className="cost-amount"
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={cost.amount}
+                      onChange={e => updateCost(i, { amount: Number(e.target.value) })}
+                      title="Amount per attempt"
+                    />
+                    <input
+                      className="cost-chance"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={cost.chance}
+                      onChange={e => updateCost(i, { chance: Number(e.target.value) })}
+                      title="Chance of success (%)"
+                    />
+                    <span className="cost-chance-suffix">%</span>
+                    <button onClick={() => removeCost(i)} title="Remove this cost row">
+                      Remove
+                    </button>
+                  </div>
+                )
+              })}
 
               <div className="row-between">
                 <h3>Modifiers</h3>
@@ -1021,11 +1050,11 @@ function App() {
       {currencyPickerFor && (
         <CurrencyPicker
           title={
-            currencyPickerFor === 'cost'
-              ? 'Choose a cost currency'
-              : currencyPickerFor === 'notes'
-                ? 'Insert a currency icon'
-                : currencyPickerFor && typeof currencyPickerFor === 'object'
+            currencyPickerFor === 'notes'
+              ? 'Insert a currency icon'
+              : currencyPickerFor && typeof currencyPickerFor === 'object' && 'costIndex' in currencyPickerFor
+                ? 'Choose a cost currency'
+                : currencyPickerFor && typeof currencyPickerFor === 'object' && 'edgeId' in currencyPickerFor
                   ? 'Insert an icon into this label'
                   : 'Choose an action / currency icon'
           }
