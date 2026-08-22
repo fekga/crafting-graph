@@ -95,6 +95,7 @@ const initialNodes: Node<CraftNodeData>[] = [
     id: 'node-2',
     type: 'craftNode',
     position: { x: 420, y: 150 },
+    selected: true,
     data: {
       label: 'Essence craft',
       action: 'Essence of Horror',
@@ -138,7 +139,6 @@ function App() {
   useItemNamesLoaded()
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<CraftNodeData>>(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
-  const [selectedId, setSelectedId] = useState<string | null>('node-2')
   const [graphName, setGraphName] = useState('My Crafting Plan')
   const [status, setStatus] = useState('')
   const [affixEditorFor, setAffixEditorFor] = useState<'new' | string | null>(null)
@@ -158,6 +158,13 @@ function App() {
   const notesRef = useRef<HTMLTextAreaElement>(null)
   const { screenToFlowPosition } = useReactFlow()
 
+  // Node selection lives on the nodes themselves (node.selected, managed by
+  // React Flow's own click/shift-click/rubber-band-select handling via
+  // onNodesChange) rather than as separate app state — that's what makes
+  // multi-select work for free: selecting several nodes just means several
+  // of them have .selected = true, no extra plumbing needed.
+  const selectedNodeIds = nodes.filter(n => n.selected).map(n => n.id)
+  const selectedId = selectedNodeIds.length === 1 ? selectedNodeIds[0] : null
   const selectedNode = nodes.find(n => n.id === selectedId)
   const totalCost = computeTotalCost(nodes)
   // The animated dash is a graph-wide display toggle, not stored per edge
@@ -171,11 +178,147 @@ function App() {
     data: { ...(e.data ?? {}), onPickIcon: () => setCurrencyPickerFor({ edgeId: e.id }) },
   }))
 
+  /** Selects exactly one node (deselecting everything else) — used after
+   * actions that create/load a node programmatically, where there's no
+   * click event for React Flow to handle selection from itself. */
+  function selectOnly(id: string | null) {
+    setNodes(ns => ns.map(n => (n.selected === (n.id === id) ? n : { ...n, selected: n.id === id })))
+  }
+
+  // --- Undo / redo -----------------------------------------------------
+  // Tracks nodes+edges as the undoable unit (the graph's actual content —
+  // name/tag-library/display-setting changes aren't included, matching
+  // what people mean by "undo" in a node editor). Rapid-fire changes
+  // (dragging a node, typing in a field) are coalesced into one history
+  // entry by only committing after a short pause, rather than recording
+  // every intermediate value.
+  type GraphSnapshot = { nodes: Node<CraftNodeData>[]; edges: Edge[] }
+  const [past, setPast] = useState<GraphSnapshot[]>([])
+  const [future, setFuture] = useState<GraphSnapshot[]>([])
+  const lastSnapshot = useRef<GraphSnapshot>({ nodes: initialNodes, edges: initialEdges })
+  const skipHistory = useRef(false)
+  const historyDebounce = useRef<number | null>(null)
+
   useEffect(() => {
-    if (selectedId && !nodes.some(n => n.id === selectedId)) {
-      setSelectedId(nodes[0]?.id ?? null)
+    if (skipHistory.current) {
+      skipHistory.current = false
+      lastSnapshot.current = { nodes, edges }
+      return
     }
-  }, [nodes, selectedId])
+    if (historyDebounce.current !== null) window.clearTimeout(historyDebounce.current)
+    historyDebounce.current = window.setTimeout(() => {
+      setPast(p => [...p, lastSnapshot.current].slice(-100))
+      setFuture([])
+      lastSnapshot.current = { nodes, edges }
+    }, 500)
+    return () => {
+      if (historyDebounce.current !== null) window.clearTimeout(historyDebounce.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, edges])
+
+  /** Resets undo/redo history — used whenever the graph is switched out
+   * wholesale (New/Clear all/Import/Load/opening a shared link), since
+   * undoing back into a *different* graph you just loaded would be
+   * confusing rather than useful. */
+  function resetHistory(snapshot: GraphSnapshot) {
+    if (historyDebounce.current !== null) window.clearTimeout(historyDebounce.current)
+    skipHistory.current = true
+    lastSnapshot.current = snapshot
+    setPast([])
+    setFuture([])
+  }
+
+  function undo() {
+    if (past.length === 0) return
+    if (historyDebounce.current !== null) window.clearTimeout(historyDebounce.current)
+    const previous = past[past.length - 1]
+    setPast(p => p.slice(0, -1))
+    setFuture(f => [{ nodes, edges }, ...f])
+    skipHistory.current = true
+    setNodes(previous.nodes)
+    setEdges(previous.edges)
+  }
+
+  function redo() {
+    if (future.length === 0) return
+    if (historyDebounce.current !== null) window.clearTimeout(historyDebounce.current)
+    const next = future[0]
+    setFuture(f => f.slice(1))
+    setPast(p => [...p, { nodes, edges }])
+    skipHistory.current = true
+    setNodes(next.nodes)
+    setEdges(next.edges)
+  }
+
+  // Ctrl/Cmd+Z to undo, Ctrl/Cmd+Shift+Z (or Ctrl+Y) to redo — but only
+  // when focus isn't inside a text field, so the browser's own undo for
+  // whatever you're typing takes priority as expected.
+  useEffect(() => {
+    function isTextEntry(el: EventTarget | null): boolean {
+      if (!(el instanceof HTMLElement)) return false
+      return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return
+      if (isTextEntry(e.target)) return
+      e.preventDefault()
+      if (e.shiftKey) redo()
+      else undo()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [past, future, nodes, edges])
+
+  /** Deletes every currently-selected node (and any edges attached to
+   * them) — the bulk counterpart to a single node's own remove button. */
+  function deleteSelectedNodes() {
+    if (selectedNodeIds.length === 0) return
+    const idSet = new Set(selectedNodeIds)
+    setNodes(ns => ns.filter(n => !idSet.has(n.id)))
+    setEdges(eds => eds.filter(e => !idSet.has(e.source) && !idSet.has(e.target)))
+  }
+
+  /** Duplicates every currently-selected node, offset slightly so the
+   * copies don't sit exactly on top of the originals, and selects the new
+   * copies (mirrors a single node's own duplicate button). */
+  function duplicateSelectedNodes() {
+    if (selectedNodeIds.length === 0) return
+    const idSet = new Set(selectedNodeIds)
+    const idMap = new Map<string, string>()
+    const clones = nodes
+      .filter(n => idSet.has(n.id))
+      .map((n, i) => {
+        const newId = `node-${Date.now()}-${i}`
+        idMap.set(n.id, newId)
+        return {
+          ...n,
+          id: newId,
+          selected: true,
+          position: { x: n.position.x + 40, y: n.position.y + 40 },
+          data: {
+            ...n.data,
+            modifiers: n.data.modifiers.map(m => ({
+              ...m,
+              id: `mod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            })),
+          },
+        }
+      })
+    // Edges that ran between two nodes that were both duplicated get
+    // duplicated too, wired between the new copies.
+    const clonedEdges = edges
+      .filter(e => idSet.has(e.source) && idSet.has(e.target))
+      .map(e => ({
+        ...e,
+        id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        source: idMap.get(e.source)!,
+        target: idMap.get(e.target)!,
+      }))
+    setNodes(ns => ns.map(n => ({ ...n, selected: false })).concat(clones))
+    setEdges(eds => eds.concat(clonedEdges))
+  }
 
   const dragStartNodeId = useRef<string | null>(null)
 
@@ -266,9 +409,8 @@ function App() {
         markerEnd: EDGE_MARKER,
       }
 
-      setNodes(ns => ns.concat(newNode))
+      setNodes(ns => ns.map(n => ({ ...n, selected: false })).concat({ ...newNode, selected: true }))
       setEdges(eds => eds.concat(newEdge))
-      setSelectedId(id)
     },
     [screenToFlowPosition, setNodes, setEdges],
   )
@@ -286,8 +428,7 @@ function App() {
         notes: '',
       },
     }
-    setNodes(ns => [...ns, node])
-    setSelectedId(id)
+    setNodes(ns => ns.map(n => ({ ...n, selected: false })).concat({ ...node, selected: true }))
   }
 
   function updateSelected(patch: Partial<CraftNodeData>) {
@@ -398,15 +539,18 @@ function App() {
   }
 
   function handleImport(payload: ExportPayload) {
+    const withTypes = payload.data.nodes.map(withNodeType)
+    const withEdgeTypes = payload.data.edges.map(withEdgeType)
     setGraphName(payload.name)
-    setNodes(payload.data.nodes.map(withNodeType))
-    setEdges(payload.data.edges.map(withEdgeType))
+    setNodes(withTypes)
+    setEdges(withEdgeTypes)
     setTagPresets(payload.data.tagPresets?.length ? payload.data.tagPresets : DEFAULT_TAG_PRESETS)
     setEdgesAnimated(payload.data.edgesAnimated ?? false)
-    setSelectedId(payload.data.nodes[0]?.id ?? null)
+    selectOnly(withTypes[0]?.id ?? null)
     setCurrentGraphId(null)
     setStatus('Imported')
     setExportImportMode(null)
+    resetHistory({ nodes: withTypes, edges: withEdgeTypes })
   }
 
   // On first load, check whether the URL is pointing at a shared graph
@@ -460,81 +604,108 @@ function App() {
     setEdges(freshEdges)
     setTagPresets(DEFAULT_TAG_PRESETS)
     setEdgesAnimated(false)
-    setSelectedId(freshNodes[0]?.id ?? null)
+    selectOnly(freshNodes[0]?.id ?? null)
     setCurrentGraphId(null)
     setStatus('')
     normalizeUrlToSlug('new')
+    resetHistory({ nodes: freshNodes, edges: freshEdges })
   }
 
   function handleClearAll() {
     if (!window.confirm('Clear the whole canvas? This removes every node and connection.')) return
     setNodes([])
     setEdges([])
-    setSelectedId(null)
     setCurrentGraphId(null)
     setStatus('Cleared')
     normalizeUrlToSlug('new')
+    resetHistory({ nodes: [], edges: [] })
   }
 
   function handleLoadLocal(payload: ExportPayload, id: string) {
+    const withTypes = payload.data.nodes.map(withNodeType)
+    const withEdgeTypes = payload.data.edges.map(withEdgeType)
     setGraphName(payload.name)
-    setNodes(payload.data.nodes.map(withNodeType))
-    setEdges(payload.data.edges.map(withEdgeType))
+    setNodes(withTypes)
+    setEdges(withEdgeTypes)
     setTagPresets(payload.data.tagPresets?.length ? payload.data.tagPresets : DEFAULT_TAG_PRESETS)
     setEdgesAnimated(payload.data.edgesAnimated ?? false)
-    setSelectedId(payload.data.nodes[0]?.id ?? null)
+    selectOnly(withTypes[0]?.id ?? null)
     setCurrentGraphId(id)
     setStatus('Loaded')
     setLocalSavesOpen(false)
+    resetHistory({ nodes: withTypes, edges: withEdgeTypes })
   }
 
   return (
     <div className="app" style={{ ['--item-icon-size' as any]: `${itemIconSize}px` }}>
       <header>
-        <div>
-          <h1>
-            <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="" className="app-favicon" />
-            Crafting Graph
-          </h1>
-          <input
-            value={graphName}
-            onChange={e => setGraphName(e.target.value)}
-            className="graph-name"
-          />
+        <div className="header-brand">
+          <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="" className="app-favicon" />
+          <h1>Crafting Graph</h1>
         </div>
-        <div className="toolbar">
-          <button onClick={addNode}>+ Add node</button>
-          <button onClick={handleNewGraph}>New</button>
-          <button onClick={handleClearAll}>Clear all</button>
-          <button onClick={handleSaveLocal}>Save</button>
-          {currentGraphId && <button onClick={handleSaveAsNewLocal}>Save as new</button>}
-          <button onClick={() => setLocalSavesOpen(true)}>Load</button>
-          <button onClick={() => setExportImportMode('export')}>Export text</button>
-          <button onClick={() => setExportImportMode('import')}>Import text</button>
-          <label className="animate-edges-control" title="Animate edges with a marching-dash line">
+
+        <div className="header-workspace">
+          <div className="header-title-block">
+            <span className="header-eyebrow">Current plan</span>
             <input
-              type="checkbox"
-              checked={edgesAnimated}
-              onChange={e => setEdgesAnimated(e.target.checked)}
+              value={graphName}
+              onChange={e => setGraphName(e.target.value)}
+              className="graph-name"
             />
-            Animate edges
-          </label>
-          <label className="icon-size-control" title="Size of item icons shown on nodes">
-            Icon size
-            <input
-              type="range"
-              min={32}
-              max={160}
-              step={4}
-              value={itemIconSize}
-              onChange={e => {
-                const size = Number(e.target.value)
-                setItemIconSize(size)
-                localStorage.setItem(ICON_SIZE_KEY, String(size))
-              }}
-            />
-          </label>
-          <span className="status">{status}</span>
+            {status && <span className="status">{status}</span>}
+          </div>
+
+          <div className="header-actions">
+            <div className="button-group">
+              <button className="btn-primary" onClick={addNode}>+ Add node</button>
+              <button onClick={handleNewGraph}>New</button>
+              <button onClick={handleClearAll}>Clear all</button>
+            </div>
+            <div className="button-group">
+              <button onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
+                ↶ Undo
+              </button>
+              <button onClick={redo} disabled={future.length === 0} title="Redo (Ctrl/Cmd+Shift+Z)">
+                ↷ Redo
+              </button>
+            </div>
+            <div className="button-group">
+              <button onClick={handleSaveLocal}>Save</button>
+              {currentGraphId && <button onClick={handleSaveAsNewLocal}>Save as new</button>}
+              <button onClick={() => setLocalSavesOpen(true)}>Load</button>
+            </div>
+            <div className="button-group">
+              <button onClick={() => setExportImportMode('export')}>Export text</button>
+              <button onClick={() => setExportImportMode('import')}>Import text</button>
+            </div>
+          </div>
+
+          <div className="view-settings">
+            <span className="view-settings-label">View</span>
+            <label className="animate-edges-control" title="Animate edges with a marching-dash line">
+              <input
+                type="checkbox"
+                checked={edgesAnimated}
+                onChange={e => setEdgesAnimated(e.target.checked)}
+              />
+              Animate edges
+            </label>
+            <label className="icon-size-control" title="Size of item icons shown on nodes">
+              Icon size
+              <input
+                type="range"
+                min={32}
+                max={160}
+                step={4}
+                value={itemIconSize}
+                onChange={e => {
+                  const size = Number(e.target.value)
+                  setItemIconSize(size)
+                  localStorage.setItem(ICON_SIZE_KEY, String(size))
+                }}
+              />
+            </label>
+          </div>
         </div>
       </header>
 
@@ -565,7 +736,13 @@ function App() {
             onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
             isValidConnection={isValidConnection}
-            onNodeClick={(_, node) => setSelectedId(node.id)}
+            // No onNodeClick here — React Flow already turns clicks (plain,
+            // shift-click, ctrl/cmd-click, and shift-drag rubber-band
+            // select) into the right node.selected changes on its own via
+            // onNodesChange; selectedNode/selectedNodeIds above are just
+            // derived from that. A custom handler here would only fight it
+            // and break multi-select.
+            deleteKeyCode={['Backspace', 'Delete']}
             fitView
           >
             <Background />
@@ -710,6 +887,19 @@ function App() {
                 placeholder="Describe what this step is trying to achieve... Markdown supported."
               />
             </>
+          ) : selectedNodeIds.length > 1 ? (
+            <div className="multi-select-panel">
+              <h2 style={{ border: 'none', padding: 0, margin: 0 }}>Crafting step</h2>
+              <p className="muted">{selectedNodeIds.length} nodes selected.</p>
+              <div className="multi-select-actions">
+                <button onClick={duplicateSelectedNodes}>Duplicate selected</button>
+                <button onClick={deleteSelectedNodes}>Remove selected</button>
+              </div>
+              <p className="muted multi-select-hint">
+                Click a single node (or Esc, then click one) to edit it individually. Shift-click or drag a
+                selection box to change which nodes are selected.
+              </p>
+            </div>
           ) : (
             <p className="muted">Select a node to edit it.</p>
           )}

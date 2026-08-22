@@ -26,6 +26,16 @@ serve the folder with any static file host.
 ## Features
 - Add crafting nodes, connect them with arrows — the arrowhead always
   marks the target end, even for a connection that loops backward
+- **Undo / redo** — Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or the Undo/Redo
+  buttons), covering the graph's actual content (nodes and connections).
+  Rapid changes like dragging a node or typing are coalesced into one
+  step rather than one per keystroke/pixel. History resets when you
+  switch to a different graph entirely (New, Clear all, Import, Load, or
+  opening a shared link) — undoing into a graph you just replaced would
+  be more confusing than useful.
+- **Multi-select** — shift-click nodes, or drag a selection box across
+  the canvas, to select several at once; the sidebar then offers
+  "Duplicate selected" / "Remove selected" for bulk actions
 - Give a connection a short text label (click/hover it to edit) — the 🖼
   button on the label inserts a currency/item icon into it, same as notes;
   toggle "Animate edges" in the toolbar for a marching-dash line across

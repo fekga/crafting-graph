@@ -97,6 +97,18 @@ button:active {
   transform: translateY(1px);
 }
 
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+}
+
+button:disabled:hover {
+  background: linear-gradient(180deg, #2a2115, #17130c);
+  border-color: var(--border-bronze);
+  color: var(--gold);
+}
+
 h1,
 h2,
 h3 {
@@ -113,11 +125,8 @@ h3 {
 }
 
 header {
-  min-height: 70px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 20px;
+  flex-direction: column;
   border-bottom: 1px solid var(--border-bronze);
   background:
     var(--noise-texture),
@@ -126,20 +135,94 @@ header {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-h1 {
-  margin: 0 0 6px;
-  font-size: 19px;
-  text-transform: uppercase;
+/* --- Brand strip: identity only, kept deliberately quiet so the title
+ * actually reads as a title rather than one more label among many --- */
+.header-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 10px 20px 8px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold) 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 10px rgba(200, 170, 110, 0.18);
 }
 
 .app-favicon {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
   flex-shrink: 0;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+/* --- Workspace strip: the actual controls, grouped and separated so it
+ * reads as a few small toolbars rather than one long row of buttons --- */
+.header-workspace {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  padding: 10px 20px 14px;
+  border-top: 1px solid rgba(140, 106, 55, 0.25);
+}
+
+.header-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-right: 4px;
+  min-height: 56px;
+  justify-content: center;
+}
+
+.header-eyebrow {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.button-group {
+  display: flex;
+  gap: 7px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(140, 106, 55, 0.3);
+}
+
+.button-group:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #1a1206;
+  border-color: var(--gold-bright);
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(180deg, #f3dfa8, var(--gold-bright));
+  color: #1a1206;
+  border-color: var(--gold-bright);
 }
 
 h2 {
@@ -157,26 +240,55 @@ h3 {
 }
 
 .graph-name {
-  width: 260px;
-  padding: 6px 9px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-bronze);
-  color: var(--text-muted);
-  border-radius: 3px;
+  width: 280px;
+  padding: 5px 2px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-bronze);
+  color: var(--gold-bright);
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  border-radius: 0;
+  transition: border-color 0.15s;
 }
 
-.toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.graph-name:hover {
+  border-bottom-color: var(--border-bronze-light);
+}
+
+.graph-name:focus {
+  outline: none;
+  border-bottom-color: var(--gold);
 }
 
 .status {
   color: var(--text-muted);
-  font-size: 12px;
-  min-width: 80px;
+  font-size: 11px;
   font-family: 'Spectral', serif;
   font-style: italic;
+}
+
+/* --- View-settings compartment: visually set apart from the action
+ * buttons, since these are display toggles, not things that change the
+ * graph itself --- */
+.view-settings {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  padding: 7px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bronze);
+  border-radius: 5px;
+}
+
+.view-settings-label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }
 
 .icon-size-control {
@@ -326,6 +438,25 @@ aside textarea:focus,
   outline: none;
   border-color: var(--gold);
   box-shadow: 0 0 0 1px var(--gold) inset;
+}
+
+/* --- Multi-select bulk-action panel (sidebar, when 2+ nodes selected) --- */
+.multi-select-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.multi-select-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.multi-select-hint {
+  margin-top: 18px;
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 .row-between {
