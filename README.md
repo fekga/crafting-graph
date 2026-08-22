@@ -36,6 +36,14 @@ serve the folder with any static file host.
 - **Multi-select** — shift-click nodes, or drag a selection box across
   the canvas, to select several at once; the sidebar then offers
   "Duplicate selected" / "Remove selected" for bulk actions
+- **Guide me** — steps through the graph one node at a time instead of
+  showing the whole thing at once. Select a starting node (or just click
+  "Guide me" if there's one obvious starting point) and it shows that
+  step's modifiers/notes/cost in the sidebar with the node highlighted on
+  canvas; if it has more than one outgoing connection (e.g. "hit the mod"
+  vs. "didn't, try again"), pick which one actually happened to move on.
+  Tracks what's actually been spent along the path taken, separately from
+  the graph-wide cost total. Back/Restart/Exit controls included.
 - The sidebar is resizable (drag the thin handle on its left edge) and
   collapsible (the little ◂/▸ tab on that handle); both are remembered
   across sessions

@@ -19,7 +19,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import { decodeGraphText, type ExportPayload } from './exportText'
 import { LEFT_TARGET_ID, migrateHandleId, oppositeTypeHandleId, RIGHT_SOURCE_ID } from './handleIds'
-import { currencyShortcode, itemArtShortcode } from './notesMarkdown'
+import { currencyShortcode, itemArtShortcode, renderNotesHtml } from './notesMarkdown'
 import { DEFAULT_TAG_PRESETS, hexToRgbTriple } from './poeColors'
 import { clearSlugFromUrl, fetchPasteText, normalizeUrlToSlug, pasteUrlFromSlug, slugFromCurrentLocation } from './pasteService'
 import { saveGraph } from './storage'
@@ -180,7 +180,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true')
   const sidebarResizing = useRef(false)
   const notesRef = useRef<HTMLTextAreaElement>(null)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, fitView } = useReactFlow()
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth))
@@ -242,6 +242,83 @@ function App() {
     ...(edgesAnimated ? { animated: true } : {}),
     data: { ...(e.data ?? {}), onPickIcon: () => setCurrencyPickerFor({ edgeId: e.id }) },
   }))
+
+  // --- Guide mode --------------------------------------------------------
+  // Steps through the graph one node at a time, following whichever
+  // outgoing connection the user says actually happened — useful for a
+  // node with several outcomes (e.g. "hit the mod" vs. "didn't, try
+  // again") where you want to be walked through the plan rather than
+  // read the whole graph at once. `path` is every node visited so far,
+  // in order; the last entry is the current step.
+  const [guide, setGuide] = useState<{ path: string[] } | null>(null)
+  const guideCurrentId = guide ? guide.path[guide.path.length - 1] : null
+  const guideCurrentNode = guideCurrentId ? nodes.find(n => n.id === guideCurrentId) : undefined
+  const guideOutgoingEdges = guideCurrentId ? edges.filter(e => e.source === guideCurrentId) : []
+  const guideVisitedNodes = guide
+    ? (guide.path.map(id => nodes.find(n => n.id === id)).filter(Boolean) as Node<CraftNodeData>[])
+    : []
+  const guideSpent = computeTotalCost(guideVisitedNodes)
+  const guideActionIconPath = guideCurrentNode
+    ? resolveFieldIconPath(guideCurrentNode.data.action, guideCurrentNode.data.actionIconPath)
+    : undefined
+
+  // While guiding, the current node gets a highlight and everything else
+  // dims — injected at render time (like renderEdges above) rather than
+  // stored on the actual nodes, since it's a transient display state.
+  const renderNodes = guide
+    ? nodes.map(n => ({
+        ...n,
+        data: { ...n.data, isGuideActive: n.id === guideCurrentId, isGuideDimmed: n.id !== guideCurrentId },
+      }))
+    : nodes
+
+  // Keeps the current guide step in view without the user having to pan
+  // themselves.
+  useEffect(() => {
+    if (!guideCurrentId) return
+    fitView({ nodes: [{ id: guideCurrentId }], duration: 400, padding: 0.4, maxZoom: 1.2 })
+  }, [guideCurrentId, fitView])
+
+  /** Nodes nothing else points into — the natural place(s) to start a
+   * walkthrough from. */
+  function guideStartCandidates(): Node<CraftNodeData>[] {
+    const targets = new Set(edges.map(e => e.target))
+    return nodes.filter(n => !targets.has(n.id))
+  }
+
+  function startGuide() {
+    const startId = selectedId ?? guideStartCandidates()[0]?.id
+    if (!startId) {
+      setStatus('Select a node to start the guide from.')
+      return
+    }
+    setGuide({ path: [startId] })
+    selectOnly(startId)
+  }
+
+  function guideChoose(edgeId: string) {
+    const edge = edges.find(e => e.id === edgeId)
+    if (!edge || !guide) return
+    setGuide({ path: [...guide.path, edge.target] })
+    selectOnly(edge.target)
+  }
+
+  function guideBack() {
+    if (!guide || guide.path.length <= 1) return
+    const nextPath = guide.path.slice(0, -1)
+    setGuide({ path: nextPath })
+    selectOnly(nextPath[nextPath.length - 1])
+  }
+
+  function guideRestart() {
+    if (!guide) return
+    setGuide({ path: [guide.path[0]] })
+    selectOnly(guide.path[0])
+  }
+
+  function exitGuide() {
+    setGuide(null)
+  }
 
   /** Selects exactly one node (deselecting everything else) — used after
    * actions that create/load a node programmatically, where there's no
@@ -651,6 +728,7 @@ function App() {
     setStatus('Imported')
     setExportImportMode(null)
     resetHistory({ nodes: withTypes, edges: withEdgeTypes })
+    setGuide(null)
   }
 
   // On first load, check whether the URL is pointing at a shared graph
@@ -709,6 +787,7 @@ function App() {
     setStatus('')
     normalizeUrlToSlug('new')
     resetHistory({ nodes: freshNodes, edges: freshEdges })
+    setGuide(null)
   }
 
   function handleClearAll() {
@@ -719,6 +798,7 @@ function App() {
     setStatus('Cleared')
     normalizeUrlToSlug('new')
     resetHistory({ nodes: [], edges: [] })
+    setGuide(null)
   }
 
   function handleLoadLocal(payload: ExportPayload, id: string) {
@@ -734,6 +814,7 @@ function App() {
     setStatus('Loaded')
     setLocalSavesOpen(false)
     resetHistory({ nodes: withTypes, edges: withEdgeTypes })
+    setGuide(null)
   }
 
   return (
@@ -777,6 +858,15 @@ function App() {
             <div className="button-group">
               <button onClick={() => setExportImportMode('export')}>Export text</button>
               <button onClick={() => setExportImportMode('import')}>Import text</button>
+            </div>
+            <div className="button-group">
+              {guide ? (
+                <button className="btn-primary" onClick={exitGuide}>■ Exit guide</button>
+              ) : (
+                <button className="btn-primary" onClick={startGuide} title="Step through the graph one node at a time">
+                  ▶ Guide me
+                </button>
+              )}
             </div>
           </div>
 
@@ -826,7 +916,7 @@ function App() {
       <main style={{ ['--sidebar-width' as any]: `${sidebarCollapsed ? 0 : sidebarWidth}px` }}>
         <section className="canvas">
           <ReactFlow
-            nodes={nodes}
+            nodes={renderNodes}
             edges={renderEdges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
@@ -869,7 +959,130 @@ function App() {
         </div>
 
         <aside>
-          {sidebarCollapsed ? null : selectedNode ? (
+          {sidebarCollapsed ? null : guide ? (
+            <div className="guide-panel">
+              <div className="row-between" style={{ marginTop: 0 }}>
+                <h2 style={{ border: 'none', padding: 0, margin: 0 }}>Guide</h2>
+                <button onClick={exitGuide}>Exit guide</button>
+              </div>
+              <p className="muted">Step {guide.path.length}</p>
+
+              {!guideCurrentNode ? (
+                <>
+                  <p className="muted">This step's node no longer exists — it may have been deleted.</p>
+                  <div className="guide-controls">
+                    <button onClick={guideBack} disabled={guide.path.length <= 1}>
+                      ← Back
+                    </button>
+                    <button onClick={exitGuide}>Exit guide</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="action-row">
+                    {guideActionIconPath && <IconImage className="action-icon" path={guideActionIconPath} alt="" />}
+                    <p className="guide-node-title">{guideCurrentNode.data.label}</p>
+                  </div>
+                  {guideCurrentNode.data.action && <p className="muted">{guideCurrentNode.data.action}</p>}
+
+                  {guideCurrentNode.data.modifiers.length > 0 && (
+                    <div className="guide-modifiers">
+                      {guideCurrentNode.data.modifiers.map(mod => (
+                        <div className="modifier-text-row" key={mod.id}>
+                          {mod.tags.map(tag => (
+                            <span
+                              key={tag.id}
+                              className="tag-badge"
+                              style={{
+                                ['--chip-color' as any]: tag.color,
+                                ['--chip-rgb' as any]: hexToRgbTriple(tag.color),
+                              }}
+                            >
+                              {tag.label}
+                            </span>
+                          ))}
+                          <span style={{ color: mod.textColor }}>{mod.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {guideCurrentNode.data.notes && (
+                    <div
+                      className="craft-node-notes"
+                      dangerouslySetInnerHTML={{ __html: renderNotesHtml(guideCurrentNode.data.notes) }}
+                    />
+                  )}
+
+                  {(guideCurrentNode.data.costs ?? []).some(c => c.currency && c.amount > 0) && (
+                    <>
+                      <h3>This step's cost</h3>
+                      {guideCurrentNode.data.costs!.map((cost, i) => {
+                        const iconPath = resolveFieldIconPath(cost.currency, cost.iconPath)
+                        return (
+                          cost.currency &&
+                          cost.amount > 0 && (
+                            <div className="craft-node-cost" key={i}>
+                              {iconPath && <IconImage className="craft-node-cost-icon" path={iconPath} alt="" />}
+                              <span>
+                                {cost.amount}× {cost.currency}
+                                {cost.chance < 100 && <span className="craft-node-cost-chance"> @ {cost.chance}%</span>}
+                              </span>
+                            </div>
+                          )
+                        )
+                      })}
+                    </>
+                  )}
+
+                  <h3>Spent so far</h3>
+                  {guideSpent.length === 0 ? (
+                    <p className="muted">Nothing yet.</p>
+                  ) : (
+                    <div className="guide-spent">
+                      {guideSpent.map(t => (
+                        <span className="total-cost-chip" key={t.currency}>
+                          {t.iconPath && <IconImage className="total-cost-icon" path={t.iconPath} alt="" />}
+                          <span>
+                            {t.amount} {t.currency}
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <h3>What happened?</h3>
+                  {guideOutgoingEdges.length === 0 ? (
+                    <p className="muted">This is an end point — nothing crafted further from here.</p>
+                  ) : (
+                    <div className="guide-choices">
+                      {guideOutgoingEdges.map(edge => {
+                        const targetNode = nodes.find(n => n.id === edge.target)
+                        const label =
+                          typeof edge.label === 'string' && edge.label
+                            ? edge.label
+                            : (targetNode?.data.label ?? 'Continue')
+                        return (
+                          <button key={edge.id} className="guide-choice-btn" onClick={() => guideChoose(edge.id)}>
+                            {label} →
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <div className="guide-controls">
+                    <button onClick={guideBack} disabled={guide.path.length <= 1}>
+                      ← Back
+                    </button>
+                    <button onClick={guideRestart} disabled={guide.path.length <= 1}>
+                      Restart
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : selectedNode ? (
             <>
               <div className="row-between" style={{ marginTop: 0 }}>
                 <h2 style={{ border: 'none', padding: 0, margin: 0 }}>Crafting step</h2>

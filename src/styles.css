@@ -508,6 +508,63 @@ aside textarea:focus,
   line-height: 1.5;
 }
 
+/* --- Guide mode panel (sidebar, while stepping through the graph) --- */
+.guide-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.guide-panel h3 {
+  margin-top: 20px;
+}
+
+.guide-node-title {
+  margin: 0;
+  font-family: 'Cinzel', serif;
+  color: var(--gold-bright);
+  font-size: 15px;
+}
+
+.guide-modifiers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.guide-spent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.guide-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guide-choice-btn {
+  text-align: left;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #1a1206;
+  border-color: var(--gold-bright);
+  font-weight: 600;
+}
+
+.guide-choice-btn:hover {
+  background: linear-gradient(180deg, #f3dfa8, var(--gold-bright));
+}
+
+.guide-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-bronze);
+}
+
 .row-between {
   display: flex;
   justify-content: space-between;
@@ -572,6 +629,16 @@ hr {
 .craft-node-selected {
   border-color: var(--gold);
   box-shadow: 0 0 0 1px var(--gold), 0 0 14px rgba(200, 170, 110, 0.35);
+}
+
+.craft-node-guide-active {
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 0 2px var(--gold-bright), 0 0 24px rgba(230, 200, 140, 0.6);
+}
+
+.craft-node-guide-dimmed {
+  opacity: 0.35;
+  filter: saturate(0.6);
 }
 
 .craft-node-remove {

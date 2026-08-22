@@ -14,6 +14,17 @@ export default function CraftNode({ id, data, selected }: NodeProps<Node<CraftNo
   // icons/notes upgrade from "not found yet" to the correct icon without
   // needing to touch anything.
   useItemNamesLoaded()
+  // Guide-mode highlight/dim flags — injected at render time by App.tsx
+  // (see its renderNodes), not part of the node's actual saved data.
+  const guideFlags = data as CraftNodeData & { isGuideActive?: boolean; isGuideDimmed?: boolean }
+  const nodeClassName = [
+    'craft-node',
+    selected && 'craft-node-selected',
+    guideFlags.isGuideActive && 'craft-node-guide-active',
+    guideFlags.isGuideDimmed && 'craft-node-guide-dimmed',
+  ]
+    .filter(Boolean)
+    .join(' ')
   const actionIconPath = resolveFieldIconPath(data.action, data.actionIconPath)
   const actionIsCurrency = isCurrency(data.action)
   const { deleteElements, getNode, addNodes } = useReactFlow<Node<CraftNodeData>>()
@@ -41,7 +52,7 @@ export default function CraftNode({ id, data, selected }: NodeProps<Node<CraftNo
   }
 
   return (
-    <div className={`craft-node${selected ? ' craft-node-selected' : ''}`}>
+    <div className={nodeClassName}>
       {/* Each visible connector actually has two overlapping handles — a
        * source and a target, exactly stacked so only one dot is ever
        * visible per side. This lets a drag be started from *or* dropped
