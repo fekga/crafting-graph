@@ -1,7 +1,7 @@
 import { Handle, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react'
 import type { MouseEvent } from 'react'
 import { LEFT_SOURCE_ID, LEFT_TARGET_ID, RIGHT_SOURCE_ID, RIGHT_TARGET_ID } from '../handleIds'
-import { isCurrency, resolveIconPath } from '../iconResolve'
+import { isCurrency, resolveFieldIconPath } from '../iconResolve'
 import { renderNotesHtml } from '../notesMarkdown'
 import { hexToRgbTriple } from '../poeColors'
 import { useItemNamesLoaded } from '../data/itemNames'
@@ -14,9 +14,9 @@ export default function CraftNode({ id, data, selected }: NodeProps<Node<CraftNo
   // icons/notes upgrade from "not found yet" to the correct icon without
   // needing to touch anything.
   useItemNamesLoaded()
-  const actionIconPath = resolveIconPath(data.action)
+  const actionIconPath = resolveFieldIconPath(data.action, data.actionIconPath)
   const actionIsCurrency = isCurrency(data.action)
-  const costIconPath = data.cost ? resolveIconPath(data.cost.currency) : undefined
+  const costIconPath = data.cost ? resolveFieldIconPath(data.cost.currency, data.cost.iconPath) : undefined
   const { deleteElements, getNode, addNodes } = useReactFlow<Node<CraftNodeData>>()
   const notesHtml = renderNotesHtml(data.notes)
 

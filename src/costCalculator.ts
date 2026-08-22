@@ -1,5 +1,5 @@
 import type { Node } from '@xyflow/react'
-import { resolveIconPath } from './iconResolve'
+import { resolveFieldIconPath } from './iconResolve'
 import type { CraftNodeData } from './types'
 
 export type CostTotal = {
@@ -16,6 +16,11 @@ export type CostTotal = {
  * are skipped. */
 export function computeTotalCost(nodes: Node<CraftNodeData>[]): CostTotal[] {
   const totals = new Map<string, number>()
+  // Remembers the first explicit icon override seen for each currency
+  // name, so the total-cost bar respects a picked/removed icon the same
+  // way a single node's cost row does, rather than always re-resolving
+  // by name.
+  const overrides = new Map<string, string>()
 
   for (const node of nodes) {
     const cost = node.data.cost
@@ -25,13 +30,14 @@ export function computeTotalCost(nodes: Node<CraftNodeData>[]): CostTotal[] {
     const chance = cost.chance > 0 && cost.chance <= 100 ? cost.chance : 100
     const expected = cost.amount / (chance / 100)
     totals.set(currency, (totals.get(currency) ?? 0) + expected)
+    if (cost.iconPath !== undefined && !overrides.has(currency)) overrides.set(currency, cost.iconPath)
   }
 
   return Array.from(totals.entries())
     .map(([currency, amount]) => ({
       currency,
       amount: Math.round(amount * 100) / 100,
-      iconPath: resolveIconPath(currency),
+      iconPath: resolveFieldIconPath(currency, overrides.get(currency)),
     }))
     .sort((a, b) => b.amount - a.amount)
 }

@@ -22,3 +22,16 @@ export function resolveIconPath(name: string): string | undefined {
 export function isCurrency(name: string): boolean {
   return findCurrencyByName(name) !== undefined
 }
+
+/** Resolves the icon to actually show for a field that has both a display
+ * text and an optional explicit icon override (a node's action, or a
+ * cost's currency — see CraftNodeData.actionIconPath / CraftCost.iconPath
+ * for the full explanation). This is what makes picking an icon "stick"
+ * independently of the text: once explicitOverride is set, renaming the
+ * text no longer changes or loses the icon, and clearing it (explicit ''
+ * from a "Remove icon" button) suppresses the icon entirely instead of
+ * silently falling back to a name match. */
+export function resolveFieldIconPath(text: string, explicitOverride: string | undefined): string | undefined {
+  if (explicitOverride !== undefined) return explicitOverride || undefined
+  return resolveIconPath(text)
+}

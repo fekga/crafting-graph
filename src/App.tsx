@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import {
   addEdge,
   Background,
@@ -34,13 +34,23 @@ import ItemPasteModal from './components/ItemPasteModal'
 import IconImage from './components/IconImage'
 import { computeTotalCost } from './costCalculator'
 import { useItemNamesLoaded } from './data/itemNames'
-import { resolveIconPath } from './iconResolve'
+import { resolveFieldIconPath } from './iconResolve'
 
 const nodeTypes: NodeTypes = { craftNode: CraftNode }
 const edgeTypes: EdgeTypes = { removable: RemovableEdge }
 
 const DEFAULT_ITEM_ICON_SIZE = 96
 const ICON_SIZE_KEY = 'poe-crafting-graph:item-icon-size'
+
+const DEFAULT_SIDEBAR_WIDTH = 360
+const MIN_SIDEBAR_WIDTH = 260
+const MAX_SIDEBAR_WIDTH = 640
+const SIDEBAR_WIDTH_KEY = 'poe-crafting-graph:sidebar-width'
+const SIDEBAR_COLLAPSED_KEY = 'poe-crafting-graph:sidebar-collapsed'
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
 
 /** Bigger than xyflow's small default arrowhead, to match the enlarged
  * handle dots — both were reported as too small to comfortably grab/see. */
@@ -155,8 +165,52 @@ function App() {
     return stored >= 32 && stored <= 200 ? stored : DEFAULT_ITEM_ICON_SIZE
   })
   const [edgesAnimated, setEdgesAnimated] = useState(false)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    const stored = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY))
+    return stored >= MIN_SIDEBAR_WIDTH && stored <= MAX_SIDEBAR_WIDTH ? stored : DEFAULT_SIDEBAR_WIDTH
+  })
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true')
+  const sidebarResizing = useRef(false)
   const notesRef = useRef<HTMLTextAreaElement>(null)
   const { screenToFlowPosition } = useReactFlow()
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth))
+  }, [sidebarWidth])
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(sidebarCollapsed))
+  }, [sidebarCollapsed])
+
+  // Drag-to-resize for the sidebar. Listens on the window (not just the
+  // handle) so the resize keeps tracking even if the cursor briefly
+  // leaves the thin handle during a fast drag.
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      if (!sidebarResizing.current) return
+      setSidebarWidth(clamp(window.innerWidth - e.clientX, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH))
+    }
+    function onMouseUp() {
+      if (!sidebarResizing.current) return
+      sidebarResizing.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
+
+  function startSidebarResize(e: ReactMouseEvent) {
+    if (sidebarCollapsed) return
+    e.preventDefault()
+    sidebarResizing.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
 
   // Node selection lives on the nodes themselves (node.selected, managed by
   // React Flow's own click/shift-click/rubber-band-select handling via
@@ -166,6 +220,12 @@ function App() {
   const selectedNodeIds = nodes.filter(n => n.selected).map(n => n.id)
   const selectedId = selectedNodeIds.length === 1 ? selectedNodeIds[0] : null
   const selectedNode = nodes.find(n => n.id === selectedId)
+  const selectedActionIconPath = selectedNode
+    ? resolveFieldIconPath(selectedNode.data.action, selectedNode.data.actionIconPath)
+    : undefined
+  const selectedCostIconPath = selectedNode?.data.cost
+    ? resolveFieldIconPath(selectedNode.data.cost.currency, selectedNode.data.cost.iconPath)
+    : undefined
   const totalCost = computeTotalCost(nodes)
   // The animated dash is a graph-wide display toggle, not stored per edge
   // — applied here at render time rather than baked into each edge object.
@@ -476,7 +536,12 @@ function App() {
       insertIntoNotes(shortcode)
     } else if (currencyPickerFor === 'cost') {
       updateSelected({
-        cost: { currency: result.name, amount: selectedNode?.data.cost?.amount ?? 1, chance: selectedNode?.data.cost?.chance ?? 100 },
+        cost: {
+          currency: result.name,
+          amount: selectedNode?.data.cost?.amount ?? 1,
+          chance: selectedNode?.data.cost?.chance ?? 100,
+          iconPath: result.path ?? '',
+        },
       })
     } else if (currencyPickerFor && typeof currencyPickerFor === 'object') {
       const { edgeId } = currencyPickerFor
@@ -486,12 +551,12 @@ function App() {
         ),
       )
     } else {
-      updateSelected({ action: result.name })
+      updateSelected({ action: result.name, actionIconPath: result.path ?? '' })
     }
     setCurrencyPickerFor(null)
   }
 
-  function updateCost(patch: Partial<{ currency: string; amount: number; chance: number }>) {
+  function updateCost(patch: Partial<{ currency: string; amount: number; chance: number; iconPath: string }>) {
     if (!selectedNode) return
     const current = selectedNode.data.cost ?? { currency: '', amount: 1, chance: 100 }
     updateSelected({ cost: { ...current, ...patch } })
@@ -500,6 +565,19 @@ function App() {
   function clearCost() {
     if (!selectedNode) return
     updateSelected({ cost: undefined })
+  }
+
+  /** Clears the icon entirely — explicitly "no icon", not just resetting
+   * to auto-detect (which could just silently bring the same icon back
+   * if the text happens to match a real item name). See
+   * CraftNodeData.actionIconPath for the undefined/''/path distinction. */
+  function removeActionIcon() {
+    updateSelected({ actionIconPath: '' })
+  }
+
+  function removeCostIcon() {
+    if (!selectedNode?.data.cost) return
+    updateCost({ iconPath: '' })
   }
 
   function insertIntoNotes(snippet: string) {
@@ -723,7 +801,7 @@ function App() {
         </div>
       )}
 
-      <main>
+      <main style={{ ['--sidebar-width' as any]: `${sidebarCollapsed ? 0 : sidebarWidth}px` }}>
         <section className="canvas">
           <ReactFlow
             nodes={nodes}
@@ -751,8 +829,25 @@ function App() {
           </ReactFlow>
         </section>
 
+        <div
+          className={`sidebar-resizer${sidebarCollapsed ? ' sidebar-resizer-collapsed' : ''}`}
+          onMouseDown={startSidebarResize}
+          title={sidebarCollapsed ? undefined : 'Drag to resize'}
+        >
+          <button
+            className="sidebar-toggle"
+            onClick={e => {
+              e.stopPropagation()
+              setSidebarCollapsed(c => !c)
+            }}
+            title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+          >
+            {sidebarCollapsed ? '◂' : '▸'}
+          </button>
+        </div>
+
         <aside>
-          {selectedNode ? (
+          {sidebarCollapsed ? null : selectedNode ? (
             <>
               <div className="row-between" style={{ marginTop: 0 }}>
                 <h2 style={{ border: 'none', padding: 0, margin: 0 }}>Crafting step</h2>
@@ -766,16 +861,18 @@ function App() {
 
               <label>Action / currency</label>
               <div className="action-row">
-                {(() => {
-                  const iconPath = resolveIconPath(selectedNode.data.action)
-                  return iconPath && <IconImage className="action-icon" path={iconPath} alt="" />
-                })()}
+                {selectedActionIconPath && <IconImage className="action-icon" path={selectedActionIconPath} alt="" />}
                 <input
                   value={selectedNode.data.action}
                   onChange={e => updateSelected({ action: e.target.value })}
                   placeholder="e.g. Essence of Horror"
                 />
                 <button onClick={() => setCurrencyPickerFor('action')}>Pick</button>
+                {selectedActionIconPath && (
+                  <button onClick={removeActionIcon} title="Remove this icon">
+                    Remove icon
+                  </button>
+                )}
               </div>
 
               <div className="row-between">
@@ -784,16 +881,18 @@ function App() {
               </div>
               {selectedNode.data.cost ? (
                 <div className="cost-row">
-                  {(() => {
-                    const iconPath = resolveIconPath(selectedNode.data.cost!.currency)
-                    return iconPath && <IconImage className="action-icon" path={iconPath} alt="" />
-                  })()}
+                  {selectedCostIconPath && <IconImage className="action-icon" path={selectedCostIconPath} alt="" />}
                   <input
                     value={selectedNode.data.cost.currency}
                     onChange={e => updateCost({ currency: e.target.value })}
                     placeholder="e.g. Chaos Orb"
                   />
                   <button onClick={() => setCurrencyPickerFor('cost')}>Pick</button>
+                  {selectedCostIconPath && (
+                    <button onClick={removeCostIcon} title="Remove this icon">
+                      Remove icon
+                    </button>
+                  )}
                   <input
                     className="cost-amount"
                     type="number"

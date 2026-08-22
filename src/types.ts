@@ -29,6 +29,14 @@ export type CraftCost = {
    * outcomes (e.g. an essence). Below 100, the total-cost bar accounts for
    * the expected number of repeats (amount / (chance / 100)). */
   chance: number
+  /** Explicit icon override for `currency`, independent of the text.
+   * undefined = no explicit choice — auto-resolve an icon from `currency`
+   * by name, same as before this field existed (so old saves keep
+   * working unchanged). '' = explicitly no icon, even if the text happens
+   * to match a real item name. A real path = the icon picked, which
+   * sticks even if `currency` is later edited to something else — e.g. a
+   * custom label instead of the item's real name. */
+  iconPath?: string
 }
 
 export type CraftNodeData = {
@@ -36,6 +44,10 @@ export type CraftNodeData = {
   action: string
   modifiers: Modifier[]
   notes: string
+  /** Explicit icon override for `action`, independent of the text — see
+   * CraftCost.iconPath for the full explanation of the undefined/''/path
+   * distinction. */
+  actionIconPath?: string
   /** Optional — not every step costs currency (e.g. a plain "Base item"
    * starting node). */
   cost?: CraftCost

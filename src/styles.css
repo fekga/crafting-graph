@@ -330,7 +330,7 @@ main {
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 7px var(--sidebar-width, 360px);
 }
 
 .canvas {
@@ -404,12 +404,61 @@ main {
 
 aside {
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
   padding: 20px;
   border-left: 1px solid var(--border-bronze);
   background:
     var(--noise-texture),
     linear-gradient(180deg, #171009, #120d08);
   background-blend-mode: overlay;
+}
+
+/* --- Sidebar resize handle + collapse toggle --- */
+.sidebar-resizer {
+  position: relative;
+  cursor: col-resize;
+  background: var(--border-bronze);
+  transition: background 0.15s;
+}
+
+.sidebar-resizer:hover,
+.sidebar-resizer:active {
+  background: var(--gold);
+}
+
+.sidebar-resizer-collapsed {
+  cursor: default;
+}
+
+.sidebar-resizer-collapsed:hover {
+  background: var(--border-bronze);
+}
+
+.sidebar-toggle {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+  z-index: 4;
+}
+
+/* When collapsed, the resizer track sits flush against the viewport's
+ * right edge — centering the button on it (as above) would clip half of
+ * it off-screen, so anchor it fully inside instead. */
+.sidebar-resizer-collapsed .sidebar-toggle {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 
 aside label {
@@ -624,6 +673,7 @@ hr {
   display: flex;
   gap: 6px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .action-row input {

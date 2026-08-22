@@ -36,6 +36,9 @@ serve the folder with any static file host.
 - **Multi-select** — shift-click nodes, or drag a selection box across
   the canvas, to select several at once; the sidebar then offers
   "Duplicate selected" / "Remove selected" for bulk actions
+- The sidebar is resizable (drag the thin handle on its left edge) and
+  collapsible (the little ◂/▸ tab on that handle); both are remembered
+  across sessions
 - Give a connection a short text label (click/hover it to edit) — the 🖼
   button on the label inserts a currency/item icon into it, same as notes;
   toggle "Animate edges" in the toolbar for a marching-dash line across
@@ -58,6 +61,9 @@ serve the folder with any static file host.
   catalogs
 - Recursive search in the art browser: search a category (or everything)
   and it crawls every subfolder, not just the one you're in
+- A picked icon sticks to the action/cost field even if you edit the text
+  next to it afterward (e.g. picking Mageblood's icon, then renaming the
+  field to "Mageblood (6-linked)") — "Remove icon" clears it explicitly
 - Give any step a cost (currency, amount, chance of success) and see a
   running total across the whole graph, per currency
 - Adjustable icon size for the item shown on each node (currency icons
