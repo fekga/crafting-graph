@@ -1,3 +1,5 @@
+import type { Edge, Node } from '@xyflow/react'
+
 /** A reusable tag "stamp" — Prefix / Suffix / Implicit / Enchant are just the
  * built-in defaults; the user can rename, recolor, add, or remove any of
  * them. A modifier can carry more than one (e.g. Prefix + Fractured). */
@@ -55,8 +57,16 @@ export type CraftNodeData = {
 }
 
 export type GraphData = {
-  nodes: any[]
-  edges: any[]
+  // `any` node/edge data rather than CraftNodeData/a specific edge shape:
+  // this is also the shape of a possibly-old save/import/share payload
+  // (e.g. pre-multiple-costs, pre-explicit-handle-ids — see withNodeType/
+  // withEdgeType in App.tsx, which migrate exactly that), so it can't be
+  // pinned to the *current* data shape without every old graph failing to
+  // load. Still real Node<>/Edge<> otherwise, rather than any[] outright,
+  // so structural mistakes in the surrounding export/save/share code (a
+  // wrong field name, the wrong array passed) are still caught here.
+  nodes: Node<any>[]
+  edges: Edge<any>[]
   /** The user's personal library of tags, offered as quick-picks in the
    * affix editor. Persisted so it round-trips through export/import. */
   tagPresets?: AffixTag[]

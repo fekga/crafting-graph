@@ -27,7 +27,8 @@ export default function LocalSavesModal({ currentGraphId, onLoad, onClose }: Pro
     listGraphs().then(setGraphs)
   }, [])
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string, name: string) {
+    if (!window.confirm(`Delete "${name || 'Untitled'}"? This can't be undone.`)) return
     await deleteGraph(id)
     setGraphs(await listGraphs())
   }
@@ -74,7 +75,7 @@ export default function LocalSavesModal({ currentGraphId, onLoad, onClose }: Pro
                 </div>
                 <div className="saved-graph-actions">
                   <button onClick={() => onLoad({ name: g.name, data: g.data }, g.id)}>Load</button>
-                  <button onClick={() => handleDelete(g.id)}>Delete</button>
+                  <button onClick={() => handleDelete(g.id, g.name)}>Delete</button>
                 </div>
               </div>
             ))}

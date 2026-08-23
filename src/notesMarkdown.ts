@@ -5,7 +5,12 @@ import { artImageUrl } from './data/itemArt'
 import { resolveIconPath } from './iconResolve'
 
 const renderer = new marked.Renderer()
-renderer.link = ({ href, title, text }) => {
+// Links in notes/labels render as plain text, not clickable <a> tags — this
+// content can come from an imported/pasted graph made by someone else, so a
+// note shouldn't be able to smuggle in a clickable link (phishing, or just
+// an accidental javascript: URL). Only `text` is destructured since href/
+// title are deliberately unused/discarded.
+renderer.link = ({ text }) => {
   return text
 }
 
@@ -51,7 +56,7 @@ function expandItemShortcodes(raw: string): string {
     const path = rawPath.trim()
     const label = rawLabel.trim()
     if (!path) return _match
-    return `![item](${artImageUrl(path)})`
+    return `![${label || 'item'}](${artImageUrl(path)})`
   })
 }
 
@@ -81,9 +86,9 @@ export function renderNotesHtml(raw: string): string {
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       'p', 'br', 'strong', 'em', 'del', 'code', 'pre', 'blockquote',
-      'ul', 'ol', 'li', 'a', 'img', 'h1', 'h2', 'h3', 'h4', 'hr', 'table',
+      'ul', 'ol', 'li', 'img', 'h1', 'h2', 'h3', 'h4', 'hr', 'table',
       'thead', 'tbody', 'tr', 'th', 'td',
     ],
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'target', 'rel'],
+    ALLOWED_ATTR: ['src', 'alt', 'title'],
   })
 }

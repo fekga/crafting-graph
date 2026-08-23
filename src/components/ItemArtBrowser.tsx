@@ -262,7 +262,11 @@ export default function ItemArtBrowser({ onPick }: Props) {
                   ))}
               </div>
 
-              {localFiltered.length === 0 && <p className="muted">Nothing matches "{query}" in this folder.</p>}
+              {localFiltered.length === 0 && (
+                <p className="muted">
+                  {query ? `Nothing matches "${query}" in this folder.` : 'This folder is empty.'}
+                </p>
+              )}
             </>
           )
         )}

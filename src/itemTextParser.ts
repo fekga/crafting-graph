@@ -188,6 +188,7 @@ export function parseItemText(raw: string): ParsedItem | null {
 
       if (KNOWN_FLAGS.has(line.toLowerCase())) {
         flags.push(line)
+        pendingHeaderTags = []
         continue
       }
 

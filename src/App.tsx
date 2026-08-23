@@ -18,7 +18,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { decodeGraphText, type ExportPayload } from './exportText'
-import { LEFT_TARGET_ID, migrateHandleId, oppositeTypeHandleId, RIGHT_SOURCE_ID } from './handleIds'
+import { LEFT_TARGET_ID, migrateHandleId, oppositeTypeHandleId } from './handleIds'
 import { currencyShortcode, itemArtShortcode, renderLabelHtml, renderNotesHtml } from './notesMarkdown'
 import { DEFAULT_TAG_PRESETS, hexToRgbTriple } from './poeColors'
 import { clearSlugFromUrl, fetchPasteText, normalizeUrlToSlug, pasteUrlFromSlug, slugFromCurrentLocation } from './pasteService'
@@ -475,7 +475,10 @@ function App() {
   }
 
   function undo() {
-    if (past.length === 0) return
+    // Belt-and-suspenders alongside the disabled prop on the Undo button
+    // and the guide check in the Ctrl/Cmd+Z listener below -- guards the
+    // actual mutation directly in case anything else ever calls this.
+    if (guide || past.length === 0) return
     if (historyDebounce.current !== null) window.clearTimeout(historyDebounce.current)
     const previous = past[past.length - 1]
     setPast(p => p.slice(0, -1))
@@ -486,7 +489,7 @@ function App() {
   }
 
   function redo() {
-    if (future.length === 0) return
+    if (guide || future.length === 0) return
     if (historyDebounce.current !== null) window.clearTimeout(historyDebounce.current)
     const next = future[0]
     setFuture(f => f.slice(1))
@@ -507,6 +510,11 @@ function App() {
     function onKeyDown(e: KeyboardEvent) {
       if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return
       if (isTextEntry(e.target)) return
+      // Same reasoning as the rest of guide mode's edit-lock (see
+      // nodesDraggable/nodesConnectable/deleteKeyCode on <ReactFlow>
+      // below): reverting the graph's actual content mid-walkthrough
+      // could yank away the very node the guide is currently sitting on.
+      if (guide) return
       e.preventDefault()
       if (e.shiftKey) redo()
       else undo()
@@ -514,7 +522,7 @@ function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [past, future, nodes, edges])
+  }, [past, future, nodes, edges, guide])
 
   /** Deletes every currently-selected node (and any edges attached to
    * them) — the bulk counterpart to a single node's own remove button. */
@@ -989,26 +997,36 @@ function App() {
           <div className={`header-menu-panel${mobileMenuOpen ? ' header-menu-panel-open' : ''}`}>
             <div className="header-actions">
               <div className="button-group">
-                <button className="btn-primary" onClick={addNode}>+ Add node</button>
-                <button onClick={handleNewGraph}>New</button>
-                <button onClick={handleClearAll}>Clear all</button>
+                <button className="btn-primary" onClick={addNode} disabled={!!guide} title={guide ? "Can't add nodes while guiding" : undefined}>
+                  + Add node
+                </button>
+                <button onClick={handleNewGraph} disabled={!!guide} title={guide ? "Can't start a new graph while guiding" : undefined}>
+                  New
+                </button>
+                <button onClick={handleClearAll} disabled={!!guide} title={guide ? "Can't clear the canvas while guiding" : undefined}>
+                  Clear all
+                </button>
               </div>
               <div className="button-group">
-                <button onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
+                <button onClick={undo} disabled={!!guide || past.length === 0} title={guide ? "Can't undo while guiding" : 'Undo (Ctrl/Cmd+Z)'}>
                   ↶ Undo
                 </button>
-                <button onClick={redo} disabled={future.length === 0} title="Redo (Ctrl/Cmd+Shift+Z)">
+                <button onClick={redo} disabled={!!guide || future.length === 0} title={guide ? "Can't redo while guiding" : 'Redo (Ctrl/Cmd+Shift+Z)'}>
                   ↷ Redo
                 </button>
               </div>
               <div className="button-group">
                 <button onClick={handleSaveLocal}>Save</button>
                 {currentGraphId && <button onClick={handleSaveAsNewLocal}>Save as new</button>}
-                <button onClick={() => setLocalSavesOpen(true)}>Load</button>
+                <button onClick={() => setLocalSavesOpen(true)} disabled={!!guide} title={guide ? "Can't load a different graph while guiding" : undefined}>
+                  Load
+                </button>
               </div>
               <div className="button-group">
                 <button onClick={() => setExportImportMode('export')}>Export text</button>
-                <button onClick={() => setExportImportMode('import')}>Import text</button>
+                <button onClick={() => setExportImportMode('import')} disabled={!!guide} title={guide ? "Can't import while guiding" : undefined}>
+                  Import text
+                </button>
               </div>
               <div className="button-group">
                 {guide ? (
