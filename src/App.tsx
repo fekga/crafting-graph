@@ -1232,14 +1232,20 @@ function App() {
                     <div className="guide-choices">
                       {guideDirectReady.map(edge => {
                         // No label usually just means "the normal/expected
-                        // outcome" -- labels are how a branch (a failure, a
-                        // specific roll, etc.) gets called out as
-                        // different from that default, so an unlabeled
-                        // edge reads as a plain success rather than
-                        // borrowing whatever the next node happens to be
-                        // named.
+                        // outcome", which reads fine as a plain "Success"
+                        // when this is the only way forward. But at a real
+                        // split -- more than one outgoing edge here -- an
+                        // unlabeled arm needs its own identity or every
+                        // option would say the same "Success" and be
+                        // indistinguishable, so fall back to what that arm
+                        // actually leads to instead.
+                        const targetNode = nodes.find(n => n.id === edge.target)
                         const label =
-                          typeof edge.label === 'string' && edge.label ? edge.label : 'Success'
+                          typeof edge.label === 'string' && edge.label
+                            ? edge.label
+                            : guideDirectEdges.length > 1
+                              ? (targetNode?.data.label ?? 'Success')
+                              : 'Success'
                         return (
                           <button key={edge.id} className="guide-choice-btn" onClick={() => guideChoose(edge.target)}>
                             {/* The label may contain {{currency:...}}/{{item:...}}
