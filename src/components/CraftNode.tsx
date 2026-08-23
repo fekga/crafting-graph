@@ -8,15 +8,20 @@ import { useItemNamesLoaded } from '../data/itemNames'
 import type { CraftNodeData } from '../types'
 import IconImage from './IconImage'
 
-export default function CraftNode({ id, data, selected }: NodeProps<Node<CraftNodeData>>) {
+export default function CraftNode({ id, data, selected, isConnectable }: NodeProps<Node<CraftNodeData>>) {
   // Triggers (once, shared across every node) the background load of the
   // real-name catalog, and re-renders this node once it's ready so its
   // icons/notes upgrade from "not found yet" to the correct icon without
   // needing to touch anything.
   useItemNamesLoaded()
-  // Guide-mode highlight/dim flags — injected at render time by App.tsx
-  // (see its renderNodes), not part of the node's actual saved data.
-  const guideFlags = data as CraftNodeData & { isGuideActive?: boolean; isGuideDimmed?: boolean }
+  // Guide-mode highlight/dim/lock flags — injected at render time by
+  // App.tsx (see its renderNodes), not part of the node's actual saved
+  // data.
+  const guideFlags = data as CraftNodeData & {
+    isGuideActive?: boolean
+    isGuideDimmed?: boolean
+    isGuideLocked?: boolean
+  }
   const nodeClassName = [
     'craft-node',
     selected && 'craft-node-selected',
@@ -64,27 +69,31 @@ export default function CraftNode({ id, data, selected }: NodeProps<Node<CraftNo
        * what caused edges to sometimes snap to the wrong side. The
        * id-less-handle-era ones (before this existed) migrate to these
        * same ids via migrateHandleId when a saved/imported edge loads. */}
-      <Handle type="source" position={Position.Left} id={LEFT_SOURCE_ID} />
-      <Handle type="target" position={Position.Left} id={LEFT_TARGET_ID} />
+      <Handle type="source" position={Position.Left} id={LEFT_SOURCE_ID} isConnectable={isConnectable} />
+      <Handle type="target" position={Position.Left} id={LEFT_TARGET_ID} isConnectable={isConnectable} />
 
-      <button
-        className="craft-node-duplicate"
-        title="Duplicate node"
-        onClick={handleDuplicate}
-      >
-        ⧉
-      </button>
+      {!guideFlags.isGuideLocked && (
+        <>
+          <button
+            className="craft-node-duplicate"
+            title="Duplicate node"
+            onClick={handleDuplicate}
+          >
+            ⧉
+          </button>
 
-      <button
-        className="craft-node-remove"
-        title="Remove node"
-        onClick={e => {
-          e.stopPropagation()
-          deleteElements({ nodes: [{ id }] })
-        }}
-      >
-        ×
-      </button>
+          <button
+            className="craft-node-remove"
+            title="Remove node"
+            onClick={e => {
+              e.stopPropagation()
+              deleteElements({ nodes: [{ id }] })
+            }}
+          >
+            ×
+          </button>
+        </>
+      )}
 
       <div className="craft-node-row">
         {actionIconPath && (
@@ -145,8 +154,8 @@ export default function CraftNode({ id, data, selected }: NodeProps<Node<CraftNo
         <div className="craft-node-notes nodrag" dangerouslySetInnerHTML={{ __html: notesHtml }} />
       )}
 
-      <Handle type="target" position={Position.Right} id={RIGHT_TARGET_ID} />
-      <Handle type="source" position={Position.Right} id={RIGHT_SOURCE_ID} />
+      <Handle type="target" position={Position.Right} id={RIGHT_TARGET_ID} isConnectable={isConnectable} />
+      <Handle type="source" position={Position.Right} id={RIGHT_SOURCE_ID} isConnectable={isConnectable} />
     </div>
   )
 }

@@ -13,6 +13,11 @@ type EdgeData = {
    * threaded through by App.tsx so this component doesn't need its own
    * copy of that modal's state (see the renderEdges comment in App.tsx). */
   onPickIcon?: () => void
+  /** True while a guide walkthrough is active — injected at render time
+   * by App.tsx, not part of the edge's actual saved data. Locks the
+   * label to read-only and hides the remove button, since a guide is
+   * meant to review/execute the plan, not edit it. */
+  isGuideLocked?: boolean
 }
 
 /** How long the toolbar stays visible after the mouse leaves either the
@@ -73,7 +78,8 @@ export default function RemovableEdge({
     targetPosition,
   })
 
-  const visible = hovered || selected
+  const isGuideLocked = !!(data as EdgeData | undefined)?.isGuideLocked
+  const visible = !isGuideLocked && (hovered || selected)
   const labelText = typeof label === 'string' ? label : ''
   const onPickIcon = (data as EdgeData | undefined)?.onPickIcon
 
@@ -148,16 +154,18 @@ export default function RemovableEdge({
               />
             )
           )}
-          <button
-            className={`edge-remove${visible ? ' edge-remove-visible' : ''}`}
-            title="Remove connection"
-            onClick={e => {
-              e.stopPropagation()
-              deleteElements({ edges: [{ id }] })
-            }}
-          >
-            ×
-          </button>
+          {!isGuideLocked && (
+            <button
+              className={`edge-remove${visible ? ' edge-remove-visible' : ''}`}
+              title="Remove connection"
+              onClick={e => {
+                e.stopPropagation()
+                deleteElements({ edges: [{ id }] })
+              }}
+            >
+              ×
+            </button>
+          )}
         </div>
       </EdgeLabelRenderer>
     </>

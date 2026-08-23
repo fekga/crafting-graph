@@ -659,6 +659,58 @@ aside textarea:focus,
   border-radius: 3px;
 }
 
+/* --- Guide start-node picker (shown by "Guide me" when the graph has
+   more than one node nothing points into) --- */
+.guide-start-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.guide-start-choice-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-bronze);
+  border-radius: 4px;
+}
+
+.guide-start-choice-btn:hover {
+  border-color: var(--gold-bright);
+  background: var(--bg-panel);
+}
+
+.guide-start-choice-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.guide-start-choice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.guide-start-choice-label {
+  font-weight: 600;
+  font-family: 'Cinzel', serif;
+  font-size: 12.5px;
+  color: var(--gold-bright);
+}
+
+.guide-start-choice-action {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+}
+
 .guide-pending-item {
   margin: 0;
   font-size: 11px;

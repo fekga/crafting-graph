@@ -190,15 +190,6 @@ function App() {
   const totalCost = computeTotalCost(nodes)
   // The animated dash is a graph-wide display toggle, not stored per edge
   // — applied here at render time rather than baked into each edge object.
-  // Every edge also gets an onPickIcon callback threaded through its data,
-  // so RemovableEdge can open the shared currency/item picker for its own
-  // label without needing its own copy of that modal's state.
-  const renderEdges = edges.map(e => ({
-    ...e,
-    ...(edgesAnimated ? { animated: true } : {}),
-    data: { ...(e.data ?? {}), onPickIcon: () => setCurrencyPickerFor({ edgeId: e.id }) },
-  }))
-
   // --- Guide mode --------------------------------------------------------
   // Steps through the graph one node at a time, following whichever
   // outgoing connection the user says actually happened. Beyond a plain
@@ -216,6 +207,11 @@ function App() {
   // back from a real converging branch is what guideGatingPredecessors
   // does below, via reachability rather than just counting edges.
   const [guide, setGuide] = useState<{ path: string[] } | null>(null)
+  // When "Guide me" is clicked and there's more than one valid starting
+  // point (see guideStartCandidates below) and none of them is already
+  // selected, this holds the candidates so a picker can be shown instead
+  // of silently guessing which one to begin at.
+  const [guideStartChoices, setGuideStartChoices] = useState<Node<CraftNodeData>[] | null>(null)
   const guideCurrentId = guide ? guide.path[guide.path.length - 1] : null
   const guideCurrentNode = guideCurrentId ? nodes.find(n => n.id === guideCurrentId) : undefined
   const guideVisitedNodes = guide
@@ -290,23 +286,59 @@ function App() {
     .filter((x): x is { node: Node<CraftNodeData>; waitingOn: Node<CraftNodeData>[] } => !!x)
   /** Once the current branch has genuinely run dry — a dead end, or
    * every direct option is still waiting on a sibling branch — offer any
-   * other ready-but-unvisited node in the graph: in practice, another
-   * starting point that hasn't been walked yet, or a join that just
-   * cleared because the last branch it needed finished elsewhere. */
+   * other unvisited node with no incoming edges at all: a genuinely
+   * separate starting point elsewhere in the graph that hasn't been
+   * walked yet (see guideStartCandidates). Deliberately NOT "any
+   * ready-and-unvisited node": the node just past a split that WASN'T
+   * taken has exactly one predecessor (the split itself), which is
+   * already visited, so it'd otherwise look just as "ready" as a real
+   * separate branch — but a split's outcomes are mutually exclusive
+   * (only one of them actually happened), not a second thing still left
+   * to do. Reaching a dead end on one arm of a split is simply the end
+   * of that arm, not a cue to go walk the other one too. */
   const guideOtherBranches =
     guideDirectReady.length === 0
-      ? nodes.filter(n => n.id !== guideCurrentId && !guideVisited.has(n.id) && guideIsReady(n.id, guideVisited))
+      ? nodes.filter(
+          n =>
+            n.id !== guideCurrentId &&
+            !guideVisited.has(n.id) &&
+            (guidePreds.get(n.id) ?? []).length === 0,
+        )
       : []
 
   // While guiding, the current node gets a highlight and everything else
-  // dims — injected at render time (like renderEdges above) rather than
+  // dims — injected at render time (like renderEdges below) rather than
   // stored on the actual nodes, since it's a transient display state.
+  // isGuideLocked also rides along on every node so CraftNode can hide
+  // its duplicate/remove buttons: the whole point of walking through a
+  // plan is reviewing/executing it, not editing it out from under
+  // yourself mid-walkthrough.
   const renderNodes = guide
     ? nodes.map(n => ({
         ...n,
-        data: { ...n.data, isGuideActive: n.id === guideCurrentId, isGuideDimmed: n.id !== guideCurrentId },
+        data: {
+          ...n.data,
+          isGuideActive: n.id === guideCurrentId,
+          isGuideDimmed: n.id !== guideCurrentId,
+          isGuideLocked: true,
+        },
       }))
     : nodes
+
+  // Every edge also gets an onPickIcon callback threaded through its
+  // data, so RemovableEdge can open the shared currency/item picker for
+  // its own label without needing its own copy of that modal's state --
+  // and, while guiding, isGuideLocked, so its label can't be edited and
+  // its remove button doesn't render.
+  const renderEdges = edges.map(e => ({
+    ...e,
+    ...(edgesAnimated ? { animated: true } : {}),
+    data: {
+      ...(e.data ?? {}),
+      onPickIcon: () => setCurrencyPickerFor({ edgeId: e.id }),
+      isGuideLocked: !!guide,
+    },
+  }))
 
   // Keeps the current guide step in view without the user having to pan
   // themselves.
@@ -316,10 +348,10 @@ function App() {
   }, [guideCurrentId, fitView])
 
   /** Nodes nothing else points into — the natural place(s) to start a
-   * walkthrough from. With more than one of these (as here), select the
-   * node you want to begin at before pressing "Guide me" to control
-   * which branch it starts on; otherwise it falls back to whichever
-   * candidate happens to come first. */
+   * walkthrough from. Selecting one of these before pressing "Guide me"
+   * controls which branch it opens on; with more than one candidate and
+   * nothing relevant selected, startGuide shows a picker instead of
+   * guessing. */
   function guideStartCandidates(): Node<CraftNodeData>[] {
     const targets = new Set(edges.map(e => e.target))
     return nodes.filter(n => !targets.has(n.id))
@@ -327,19 +359,31 @@ function App() {
 
   function startGuide() {
     const candidates = guideStartCandidates()
+    if (candidates.length === 0) {
+      setStatus('Select a node to start the guide from.')
+      return
+    }
     // Only honor the current selection as the starting point if it's
     // actually one of the graph's real starts (no incoming edges) --
     // otherwise whatever node was last selected while editing (which
     // could be anywhere in the graph) would silently hijack where the
     // guide begins. Deliberately selecting one of several valid starts
-    // still works, to control which branch it opens on.
-    const startId = (selectedId && candidates.some(n => n.id === selectedId))
-      ? selectedId
-      : candidates[0]?.id
-    if (!startId) {
-      setStatus('Select a node to start the guide from.')
+    // still works, and skips the picker below.
+    if (selectedId && candidates.some(n => n.id === selectedId)) {
+      beginGuideAt(selectedId)
       return
     }
+    if (candidates.length === 1) {
+      beginGuideAt(candidates[0].id)
+      return
+    }
+    // More than one valid start and none of them is what's selected --
+    // ask which one, rather than silently picking whichever happens to
+    // come first.
+    setGuideStartChoices(candidates)
+  }
+
+  function beginGuideAt(startId: string) {
     setGuide({ path: [startId] })
     selectOnly(startId)
     // The guide panel lives in the sidebar, so make sure it's actually
@@ -349,6 +393,7 @@ function App() {
     // and leaving it open would just cover the sidebar it opens.
     setSidebarCollapsed(false)
     setMobileMenuOpen(false)
+    setGuideStartChoices(null)
   }
 
   /** Advances to `nodeId`, whether that's the target of a direct edge
@@ -527,7 +572,11 @@ function App() {
   }, [])
 
   const onConnect = useCallback((connection: Connection) => {
-    if (connection.source === connection.target) return
+    // See the matching guard in onConnectEnd -- nodesConnectable={!guide}
+    // is what actually stops a connection drag from starting, this is
+    // just a second line of defense on the same "a new edge got made"
+    // path.
+    if (guide || connection.source === connection.target) return
     // React Flow assigns source/target purely by handle type (the
     // source-typed handle always becomes the edge's source), which can
     // end up backward from the direction actually dragged in — e.g.
@@ -560,7 +609,7 @@ function App() {
         eds,
       ),
     )
-  }, [setEdges])
+  }, [setEdges, guide])
 
   const isValidConnection = useCallback(
     (conn: Connection | Edge) => conn.source !== conn.target,
@@ -578,7 +627,13 @@ function App() {
   // actually dragged from, not fromNode's other side.
   const onConnectEnd = useCallback(
     (event: MouseEvent | TouchEvent, connectionState: FinalConnectionState) => {
-      if (connectionState.isValid || connectionState.toNode || !connectionState.fromNode) return
+      // Belt-and-suspenders alongside nodesConnectable={!guide} on
+      // <ReactFlow> below: that prop is what actually stops a connection
+      // drag from starting in the first place, but this guards the same
+      // "dropped on empty canvas" node-creation path directly too, in
+      // case a connection is ever already in progress right as a guide
+      // starts.
+      if (guide || connectionState.isValid || connectionState.toNode || !connectionState.fromNode) return
 
       const point = 'changedTouches' in event ? event.changedTouches[0] : event
       const position = screenToFlowPosition({ x: point.clientX, y: point.clientY })
@@ -612,7 +667,7 @@ function App() {
       setNodes(ns => ns.map(n => ({ ...n, selected: false })).concat({ ...newNode, selected: true }))
       setEdges(eds => eds.concat(newEdge))
     },
-    [screenToFlowPosition, setNodes, setEdges],
+    [screenToFlowPosition, setNodes, setEdges, guide],
   )
 
   // Successive Add-node clicks nudge around the center a little instead
@@ -1035,7 +1090,16 @@ function App() {
             // onNodesChange; selectedNode/selectedNodeIds above are just
             // derived from that. A custom handler here would only fight it
             // and break multi-select.
-            deleteKeyCode={['Backspace', 'Delete']}
+            deleteKeyCode={guide ? [] : ['Backspace', 'Delete']}
+            // While a guide is active this is meant to be a walkthrough of
+            // the plan, not an editing session -- dragging nodes around,
+            // dragging out new connections, or deleting something with the
+            // keyboard are all disabled for the duration (selection, pan,
+            // and zoom stay on, since those are just how you look at it).
+            // The per-node/per-edge buttons and edge label input are
+            // separately hidden via isGuideLocked in CraftNode/RemovableEdge.
+            nodesDraggable={!guide}
+            nodesConnectable={!guide}
             // Explicit rather than relying on defaults: a one-finger drag
             // on empty canvas pans, a two-finger pinch zooms, and a
             // two-finger drag also pans -- the standard touch map for a
@@ -1167,11 +1231,15 @@ function App() {
                   {(guideDirectReady.length > 0 || guideOtherBranches.length > 0) && (
                     <div className="guide-choices">
                       {guideDirectReady.map(edge => {
-                        const targetNode = nodes.find(n => n.id === edge.target)
+                        // No label usually just means "the normal/expected
+                        // outcome" -- labels are how a branch (a failure, a
+                        // specific roll, etc.) gets called out as
+                        // different from that default, so an unlabeled
+                        // edge reads as a plain success rather than
+                        // borrowing whatever the next node happens to be
+                        // named.
                         const label =
-                          typeof edge.label === 'string' && edge.label
-                            ? edge.label
-                            : (targetNode?.data.label ?? 'Continue')
+                          typeof edge.label === 'string' && edge.label ? edge.label : 'Success'
                         return (
                           <button key={edge.id} className="guide-choice-btn" onClick={() => guideChoose(edge.target)}>
                             {/* The label may contain {{currency:...}}/{{item:...}}
@@ -1304,7 +1372,12 @@ function App() {
               <div className="row-between">
                 <h3>Modifiers</h3>
                 <div className="modifier-header-actions">
-                  <button onClick={() => setItemPasteOpen(true)}>Paste item</button>
+                  <button
+                    onClick={() => setItemPasteOpen(true)}
+                    title="Copy the item in-game with Alt+Ctrl+C, not plain Ctrl+C"
+                  >
+                    Paste item
+                  </button>
                   <button onClick={addModifier}>+ Add</button>
                 </div>
               </div>
@@ -1413,8 +1486,9 @@ function App() {
               <h3>Modifiers</h3>
               <p className="muted">
                 A node's modifiers are the affixes the item is meant to have once that step's done — add them one
-                at a time, or use <strong>Paste item</strong> to fill them in automatically from an item's text.
-                They're just documentation for the step; they don't affect the cost calculation.
+                at a time, or use <strong>Paste item</strong> to fill them in automatically from an item's text
+                (copy it in-game with <strong>Alt+Ctrl+C</strong>, not plain Ctrl+C, so the origin tags come
+                through). They're just documentation for the step; they don't affect the cost calculation.
               </p>
 
               <h3>Walking through it</h3>
@@ -1480,6 +1554,41 @@ function App() {
           onAdd={handleAddFromItemPaste}
           onClose={() => setItemPasteOpen(false)}
         />
+      )}
+      {guideStartChoices && (
+        <div
+          className="modal-overlay"
+          // Deliberately no onClick here: clicking the backdrop must NOT
+          // close the modal, only the explicit Cancel button should --
+          // same convention as every other modal in this app.
+        >
+          <div className="modal guide-start-picker" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Start from which node?</h2>
+              <button onClick={() => setGuideStartChoices(null)}>Cancel</button>
+            </div>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Nothing feeds into any of these, so any of them could be where the plan begins. Pick one to start
+              the guide there.
+            </p>
+            <div className="guide-start-choice-list">
+              {guideStartChoices.map(node => {
+                const iconPath = resolveFieldIconPath(node.data.action, node.data.actionIconPath)
+                return (
+                  <button key={node.id} className="guide-start-choice-btn" onClick={() => beginGuideAt(node.id)}>
+                    {iconPath && <IconImage className="guide-start-choice-icon" path={iconPath} alt="" />}
+                    <span className="guide-start-choice-text">
+                      <span className="guide-start-choice-label">{node.data.label || node.data.action || 'Untitled step'}</span>
+                      {node.data.label && node.data.action && (
+                        <span className="guide-start-choice-action">{node.data.action}</span>
+                      )}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
