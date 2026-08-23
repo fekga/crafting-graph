@@ -50,6 +50,18 @@ body,
   width: 100%;
   height: 100%;
   font-family: 'Spectral', Georgia, serif;
+  /* The app is a single fixed-size screen, not a scrolling page -- so
+   * disable page-level scroll/bounce/pull-to-refresh entirely. Without
+   * this, a touch-drag meant to pan the React Flow canvas can instead (or
+   * additionally) get grabbed by the browser as a page scroll/rubber-band
+   * gesture, especially near the top/bottom edge, making the canvas feel
+   * like it won't respond to a finger. (Not touch-action: none here --
+   * that property applies to a whole ancestor chain, not just the page,
+   * and would also block touch-scrolling inside the sidebar and modals.
+   * React Flow's own pane already sets touch-action: none on itself,
+   * which is all it needs regardless of what ancestors do.) */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -198,6 +210,23 @@ h1 {
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
+}
+
+/* Hamburger button that reveals the actions/view-settings dropdown on
+ * narrow screens -- see the mobile media query below. Hidden here since
+ * desktop shows everything inline and has no dropdown to open. */
+.mobile-menu-toggle {
+  display: none;
+}
+
+/* A transparent wrapper around header-actions + view-settings so it can
+ * become a real dropdown box on mobile (see the media query) without
+ * changing anything about the desktop layout: `display: contents` makes
+ * this element invisible to layout, so its children go on being direct
+ * flex items of .header-workspace exactly as if this wrapper weren't
+ * there at all. */
+.header-menu-panel {
+  display: contents;
 }
 
 .button-group {
@@ -555,6 +584,61 @@ aside textarea:focus,
 
 .guide-choice-btn:hover {
   background: linear-gradient(180deg, #f3dfa8, var(--gold-bright));
+  color: #1a1206;
+}
+
+/* Icon shortcodes in a guide choice's label render as plain <img> tags
+ * (see renderLabelHtml) with no size of their own -- match the size of
+ * the same label's badge on the canvas edge rather than showing the
+ * icon at native resolution. */
+.guide-choice-btn img {
+  max-width: 16px;
+  max-height: 16px;
+  width: auto;
+  height: auto;
+  vertical-align: middle;
+  margin: 0 1px;
+}
+
+/* Marks a choice that jumps to a node not directly reachable from the
+ * current step -- another branch's starting point, or a join that just
+ * became available -- so it doesn't read as a normal continuation. */
+.guide-choice-branch-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
+/* Explains why a direct next step isn't offered as a button yet -- it's
+ * a join still waiting on a sibling branch to be walked through. */
+.guide-pending {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px dashed var(--border-bronze);
+  border-radius: 3px;
+}
+
+.guide-pending-item {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.guide-pending-item + .guide-pending-item {
+  margin-top: 6px;
+}
+
+.guide-pending-item strong {
+  color: var(--gold);
+  font-weight: 600;
 }
 
 .guide-controls {
@@ -698,6 +782,16 @@ hr {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+}
+
+/* These per-node buttons normally only reveal on :hover, which never
+ * fires on touch -- selecting the node (tap) is the touch equivalent of
+ * hovering it with a mouse, so also reveal them then. Harmless on
+ * desktop too, since a selected node is already the one you're working
+ * with. */
+.craft-node-selected .craft-node-remove,
+.craft-node-selected .craft-node-duplicate {
+  opacity: 1;
 }
 
 .craft-node-row {
@@ -1741,4 +1835,277 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+}
+
+/* =====================================================================
+   Mobile / touch responsiveness
+   ===================================================================== */
+
+/* Coarse-pointer devices (touch) get bigger hit targets on the small
+ * controls that are fiddly to tap precisely -- this is keyed off the
+ * hardware, not viewport width, since a touch laptop at desktop width
+ * has the same precision problem a phone does. */
+@media (hover: none) and (pointer: coarse) {
+  .react-flow__handle {
+    width: 18px;
+    height: 18px;
+  }
+
+  .craft-node-remove,
+  .craft-node-duplicate {
+    width: 26px;
+    height: 26px;
+    font-size: 15px;
+  }
+
+  .edge-remove {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+@media (max-width: 860px) {
+  /* --- Header: brand row stays put; the hamburger button lives at its
+   * right edge, next to the title. --- */
+  .header-brand {
+    padding: 8px 14px 4px;
+  }
+
+  h1 {
+    font-size: 18px;
+    flex: 1;
+  }
+
+  .app-favicon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .mobile-menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    margin-left: auto;
+    border-radius: 4px;
+    font-size: 16px;
+  }
+
+  .header-workspace {
+    position: relative;
+    padding: 8px 14px 10px;
+    gap: 10px;
+  }
+
+  .header-title-block {
+    width: 100%;
+    min-height: 0;
+  }
+
+  .graph-name {
+    width: 100%;
+  }
+
+  .total-cost-bar {
+    padding: 8px 14px;
+  }
+
+  /* --- The actions/view-settings dropdown. Closed by default: no box,
+   * nothing rendered. Open: a panel anchored under the header, laid out
+   * as a single scrollable column rather than the desktop's row of
+   * button-groups, since there's no width to spare for those side by
+   * side. --- */
+  .header-menu-panel {
+    display: none;
+  }
+
+  .header-menu-panel-open {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    padding: 14px;
+    max-height: calc(100vh - 100%);
+    overflow-y: auto;
+    background:
+      var(--noise-texture),
+      linear-gradient(180deg, #1c150d, #0f0b07);
+    background-blend-mode: overlay;
+    border-bottom: 1px solid var(--border-bronze);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
+    z-index: 42;
+  }
+
+  .header-menu-panel-open .header-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .header-menu-panel-open .button-group {
+    flex-direction: column;
+    align-items: stretch;
+    padding-left: 0;
+    border-left: none;
+    padding-top: 10px;
+    border-top: 1px solid rgba(140, 106, 55, 0.3);
+    gap: 6px;
+  }
+
+  .header-menu-panel-open .button-group:first-child {
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .header-menu-panel-open .view-settings {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* Tapping anywhere outside the open dropdown closes it -- a
+   * full-screen, invisible layer just beneath the dropdown's z-index. */
+  .mobile-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 41;
+  }
+
+  /* --- Bigger tap targets on ordinary buttons and text inputs. The
+   * per-node circular buttons, tag chips, and other deliberately-small
+   * controls are excluded and restored to their normal size below. */
+  button {
+    min-height: 40px;
+    padding: 9px 12px;
+  }
+
+  .craft-node-remove,
+  .craft-node-duplicate,
+  .reorder-btn,
+  .color-swatch,
+  .category-tab,
+  .sidebar-toggle {
+    min-height: 0;
+  }
+
+  /* Inputs/textareas at 16px stop iOS Safari auto-zooming the page on
+   * focus, which is jarring inside a fixed-position sidebar. */
+  aside input,
+  aside textarea,
+  .modal-search,
+  .affix-text-input,
+  .export-textarea,
+  .paste-link-input,
+  .edge-label-input,
+  .item-paste-mod-text {
+    font-size: 16px;
+  }
+
+  /* --- Canvas takes the full width; the sidebar becomes a slide-in
+   * overlay instead of a fixed grid column, since there isn't room for
+   * both side by side. The resizer's drag-to-resize behavior is
+   * meaningless on touch, so only its toggle button remains -- moved to
+   * a fixed, thumb-reachable corner. --- */
+  main {
+    grid-template-columns: 1fr 0px 0px;
+  }
+
+  .sidebar-resizer {
+    cursor: default;
+    background: transparent;
+  }
+
+  .sidebar-resizer:hover,
+  .sidebar-resizer:active {
+    background: transparent;
+  }
+
+  .sidebar-toggle {
+    position: fixed;
+    top: auto;
+    left: auto;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    right: 14px;
+    transform: none;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    font-size: 15px;
+    z-index: 45;
+    background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+    color: #1a1206;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  }
+
+  aside {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(88vw, 380px);
+    max-width: 100vw;
+    z-index: 40;
+    padding-top: 24px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.7);
+    transform: translateX(100%);
+    transition: transform 0.22s ease;
+  }
+
+  .sidebar-resizer:not(.sidebar-resizer-collapsed) + aside {
+    transform: translateX(0);
+  }
+
+  /* --- The minimap is a nice-to-have that eats a lot of already-scarce
+   * screen space on a phone; drop it and keep the zoom/fit controls. --- */
+  .react-flow__minimap {
+    display: none;
+  }
+
+  .react-flow__controls {
+    transform: scale(0.92);
+    transform-origin: bottom left;
+  }
+
+  /* --- Modals: closer to full-screen, less wasted padding --- */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal,
+  .affix-editor-modal,
+  .item-paste-modal {
+    width: 100%;
+    max-height: 92vh;
+    padding: 14px;
+  }
+
+  .category-tabs {
+    gap: 5px;
+  }
+
+  .category-tab {
+    font-size: 10px;
+    padding: 8px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  aside {
+    width: 100vw;
+  }
+
+  h1 {
+    font-size: 16px;
+  }
+
+  .cost-row input:not(.cost-amount):not(.cost-chance) {
+    min-width: 0;
+  }
 }

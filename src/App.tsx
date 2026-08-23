@@ -19,7 +19,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import { decodeGraphText, type ExportPayload } from './exportText'
 import { LEFT_TARGET_ID, migrateHandleId, oppositeTypeHandleId, RIGHT_SOURCE_ID } from './handleIds'
-import { currencyShortcode, itemArtShortcode, renderNotesHtml } from './notesMarkdown'
+import { currencyShortcode, itemArtShortcode, renderLabelHtml, renderNotesHtml } from './notesMarkdown'
 import { DEFAULT_TAG_PRESETS, hexToRgbTriple } from './poeColors'
 import { clearSlugFromUrl, fetchPasteText, normalizeUrlToSlug, pasteUrlFromSlug, slugFromCurrentLocation } from './pasteService'
 import { saveGraph } from './storage'
@@ -178,6 +178,12 @@ function App() {
     return stored >= MIN_SIDEBAR_WIDTH && stored <= MAX_SIDEBAR_WIDTH ? stored : DEFAULT_SIDEBAR_WIDTH
   })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true')
+  // Narrow-screen only: the header's action buttons and view-settings
+  // collapse into a dropdown menu behind a hamburger button, since there
+  // isn't room to lay them out inline the way desktop does. Irrelevant
+  // (and never toggled) above the mobile breakpoint — see the
+  // `.mobile-menu-toggle` / `.header-menu-panel` rules in styles.css.
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const sidebarResizing = useRef(false)
   const notesRef = useRef<HTMLTextAreaElement>(null)
   const { screenToFlowPosition, fitView } = useReactFlow()
@@ -245,15 +251,23 @@ function App() {
 
   // --- Guide mode --------------------------------------------------------
   // Steps through the graph one node at a time, following whichever
-  // outgoing connection the user says actually happened — useful for a
-  // node with several outcomes (e.g. "hit the mod" vs. "didn't, try
-  // again") where you want to be walked through the plan rather than
-  // read the whole graph at once. `path` is every node visited so far,
-  // in order; the last entry is the current step.
+  // outgoing connection the user says actually happened. Beyond a plain
+  // straight line, this also has to handle:
+  //  - multiple starting points (e.g. a base item prepared alongside a
+  //    separately-bought donor item) that later join into one path,
+  //  - a genuine join, only offered once every branch feeding into it has
+  //    actually been walked through, and
+  //  - retry loops (an edge back to an earlier step in the SAME branch,
+  //    e.g. "didn't hit the mod, try the essence again") which must
+  //    always stay choosable and must NOT be mistaken for a second branch
+  //    that needs finishing first.
+  // All three fall out of one rule: a node is "ready" once every incoming
+  // edge that ISN'T a loop-back has been walked. Distinguishing a loop-
+  // back from a real converging branch is what guideGatingPredecessors
+  // does below, via reachability rather than just counting edges.
   const [guide, setGuide] = useState<{ path: string[] } | null>(null)
   const guideCurrentId = guide ? guide.path[guide.path.length - 1] : null
   const guideCurrentNode = guideCurrentId ? nodes.find(n => n.id === guideCurrentId) : undefined
-  const guideOutgoingEdges = guideCurrentId ? edges.filter(e => e.source === guideCurrentId) : []
   const guideVisitedNodes = guide
     ? (guide.path.map(id => nodes.find(n => n.id === id)).filter(Boolean) as Node<CraftNodeData>[])
     : []
@@ -261,6 +275,78 @@ function App() {
   const guideActionIconPath = guideCurrentNode
     ? resolveFieldIconPath(guideCurrentNode.data.action, guideCurrentNode.data.actionIconPath)
     : undefined
+
+  /** Every node reachable by following outgoing edges forward from
+   * `startId`, including through cycles (the seen-set guards against
+   * infinite looping, not against revisiting nodes along the way). */
+  function guideForwardReachable(startId: string): Set<string> {
+    const seen = new Set<string>()
+    const stack = [startId]
+    while (stack.length > 0) {
+      const id = stack.pop() as string
+      for (const e of edges) {
+        if (e.source !== id || seen.has(e.target)) continue
+        seen.add(e.target)
+        stack.push(e.target)
+      }
+    }
+    return seen
+  }
+
+  const guidePreds = (() => {
+    const map = new Map<string, string[]>()
+    for (const e of edges) map.set(e.target, [...(map.get(e.target) ?? []), e.source])
+    return map
+  })()
+
+  /** The incoming edges that actually have to be walked before a node is
+   * reachable — every predecessor except ones the node can itself reach
+   * by following edges forward, since those are a loop back from later
+   * in its own branch rather than a separate branch joining in here. A
+   * node ends up with 2+ of these only at a genuine join (like a
+   * recombinator); everything else — including a node with several
+   * loop-back edges pointing at it — has 0 or 1, so it's never gated on
+   * "the other branch" the way a real join is. */
+  function guideGatingPredecessors(nodeId: string): string[] {
+    const preds = guidePreds.get(nodeId) ?? []
+    if (preds.length < 2) return preds
+    const reachableFromNode = guideForwardReachable(nodeId)
+    return preds.filter(p => !reachableFromNode.has(p))
+  }
+
+  function guideIsReady(nodeId: string, visited: Set<string>): boolean {
+    return guideGatingPredecessors(nodeId).every(p => visited.has(p))
+  }
+
+  const guideVisited = new Set(guide?.path ?? [])
+
+  /** Every outgoing edge from the current step. */
+  const guideDirectEdges = guideCurrentId ? edges.filter(e => e.source === guideCurrentId) : []
+  /** ...and just the ones that are actually available to click right now
+   * — always including a loop-back target regardless of whether it's
+   * been visited before, since "try again" is meant to be repeatable. */
+  const guideDirectReady = guideDirectEdges.filter(e => guideIsReady(e.target, guideVisited))
+  /** The rest: a direct next step exists, but its target is still
+   * waiting on a sibling branch — shown as a note rather than a button. */
+  const guidePendingHere = guideDirectEdges
+    .map(e => {
+      const target = nodes.find(n => n.id === e.target)
+      const waitingOn = guideGatingPredecessors(e.target)
+        .filter(p => !guideVisited.has(p))
+        .map(p => nodes.find(n => n.id === p))
+        .filter((n): n is Node<CraftNodeData> => !!n)
+      return target && waitingOn.length > 0 ? { node: target, waitingOn } : null
+    })
+    .filter((x): x is { node: Node<CraftNodeData>; waitingOn: Node<CraftNodeData>[] } => !!x)
+  /** Once the current branch has genuinely run dry — a dead end, or
+   * every direct option is still waiting on a sibling branch — offer any
+   * other ready-but-unvisited node in the graph: in practice, another
+   * starting point that hasn't been walked yet, or a join that just
+   * cleared because the last branch it needed finished elsewhere. */
+  const guideOtherBranches =
+    guideDirectReady.length === 0
+      ? nodes.filter(n => n.id !== guideCurrentId && !guideVisited.has(n.id) && guideIsReady(n.id, guideVisited))
+      : []
 
   // While guiding, the current node gets a highlight and everything else
   // dims — injected at render time (like renderEdges above) rather than
@@ -280,7 +366,10 @@ function App() {
   }, [guideCurrentId, fitView])
 
   /** Nodes nothing else points into — the natural place(s) to start a
-   * walkthrough from. */
+   * walkthrough from. With more than one of these (as here), select the
+   * node you want to begin at before pressing "Guide me" to control
+   * which branch it starts on; otherwise it falls back to whichever
+   * candidate happens to come first. */
   function guideStartCandidates(): Node<CraftNodeData>[] {
     const targets = new Set(edges.map(e => e.target))
     return nodes.filter(n => !targets.has(n.id))
@@ -296,11 +385,14 @@ function App() {
     selectOnly(startId)
   }
 
-  function guideChoose(edgeId: string) {
-    const edge = edges.find(e => e.id === edgeId)
-    if (!edge || !guide) return
-    setGuide({ path: [...guide.path, edge.target] })
-    selectOnly(edge.target)
+  /** Advances to `nodeId`, whether that's the target of a direct edge
+   * from the current step or a jump to an unrelated ready branch (see
+   * guideOtherBranches) — either way it's just appended to the path, so
+   * a loop-back target can appear here more than once. */
+  function guideChoose(nodeId: string) {
+    if (!guide) return
+    setGuide({ path: [...guide.path, nodeId] })
+    selectOnly(nodeId)
   }
 
   function guideBack() {
@@ -823,6 +915,16 @@ function App() {
         <div className="header-brand">
           <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="" className="app-favicon" />
           <h1>Crafting Graph</h1>
+          {/* Hamburger toggle — hidden on desktop by CSS, where the actions
+           * below are always shown inline instead of behind this menu. */}
+          <button
+            className="mobile-menu-toggle"
+            onClick={() => setMobileMenuOpen(o => !o)}
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          >
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
         </div>
 
         <div className="header-workspace">
@@ -836,68 +938,80 @@ function App() {
             {status && <span className="status">{status}</span>}
           </div>
 
-          <div className="header-actions">
-            <div className="button-group">
-              <button className="btn-primary" onClick={addNode}>+ Add node</button>
-              <button onClick={handleNewGraph}>New</button>
-              <button onClick={handleClearAll}>Clear all</button>
-            </div>
-            <div className="button-group">
-              <button onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
-                ↶ Undo
-              </button>
-              <button onClick={redo} disabled={future.length === 0} title="Redo (Ctrl/Cmd+Shift+Z)">
-                ↷ Redo
-              </button>
-            </div>
-            <div className="button-group">
-              <button onClick={handleSaveLocal}>Save</button>
-              {currentGraphId && <button onClick={handleSaveAsNewLocal}>Save as new</button>}
-              <button onClick={() => setLocalSavesOpen(true)}>Load</button>
-            </div>
-            <div className="button-group">
-              <button onClick={() => setExportImportMode('export')}>Export text</button>
-              <button onClick={() => setExportImportMode('import')}>Import text</button>
-            </div>
-            <div className="button-group">
-              {guide ? (
-                <button className="btn-primary" onClick={exitGuide}>■ Exit guide</button>
-              ) : (
-                <button className="btn-primary" onClick={startGuide} title="Step through the graph one node at a time">
-                  ▶ Guide me
+          {/* On mobile this whole block is a dropdown behind the hamburger
+           * button above; on desktop the open/closed class has no effect
+           * (see the plain, non-media-query `.header-menu-panel` rule) so
+           * it always renders inline as it always has. */}
+          <div className={`header-menu-panel${mobileMenuOpen ? ' header-menu-panel-open' : ''}`}>
+            <div className="header-actions">
+              <div className="button-group">
+                <button className="btn-primary" onClick={addNode}>+ Add node</button>
+                <button onClick={handleNewGraph}>New</button>
+                <button onClick={handleClearAll}>Clear all</button>
+              </div>
+              <div className="button-group">
+                <button onClick={undo} disabled={past.length === 0} title="Undo (Ctrl/Cmd+Z)">
+                  ↶ Undo
                 </button>
-              )}
+                <button onClick={redo} disabled={future.length === 0} title="Redo (Ctrl/Cmd+Shift+Z)">
+                  ↷ Redo
+                </button>
+              </div>
+              <div className="button-group">
+                <button onClick={handleSaveLocal}>Save</button>
+                {currentGraphId && <button onClick={handleSaveAsNewLocal}>Save as new</button>}
+                <button onClick={() => setLocalSavesOpen(true)}>Load</button>
+              </div>
+              <div className="button-group">
+                <button onClick={() => setExportImportMode('export')}>Export text</button>
+                <button onClick={() => setExportImportMode('import')}>Import text</button>
+              </div>
+              <div className="button-group">
+                {guide ? (
+                  <button className="btn-primary" onClick={exitGuide}>■ Exit guide</button>
+                ) : (
+                  <button className="btn-primary" onClick={startGuide} title="Step through the graph one node at a time">
+                    ▶ Guide me
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="view-settings">
-            <span className="view-settings-label">View</span>
-            <label className="animate-edges-control" title="Animate edges with a marching-dash line">
-              <input
-                type="checkbox"
-                checked={edgesAnimated}
-                onChange={e => setEdgesAnimated(e.target.checked)}
-              />
-              Animate edges
-            </label>
-            <label className="icon-size-control" title="Size of item icons shown on nodes">
-              Icon size
-              <input
-                type="range"
-                min={32}
-                max={160}
-                step={4}
-                value={itemIconSize}
-                onChange={e => {
-                  const size = Number(e.target.value)
-                  setItemIconSize(size)
-                  localStorage.setItem(ICON_SIZE_KEY, String(size))
-                }}
-              />
-            </label>
+            <div className="view-settings">
+              <span className="view-settings-label">View</span>
+              <label className="animate-edges-control" title="Animate edges with a marching-dash line">
+                <input
+                  type="checkbox"
+                  checked={edgesAnimated}
+                  onChange={e => setEdgesAnimated(e.target.checked)}
+                />
+                Animate edges
+              </label>
+              <label className="icon-size-control" title="Size of item icons shown on nodes">
+                Icon size
+                <input
+                  type="range"
+                  min={32}
+                  max={160}
+                  step={4}
+                  value={itemIconSize}
+                  onChange={e => {
+                    const size = Number(e.target.value)
+                    setItemIconSize(size)
+                    localStorage.setItem(ICON_SIZE_KEY, String(size))
+                  }}
+                />
+              </label>
+            </div>
           </div>
         </div>
       </header>
+
+      {/* Mobile-only backdrop: tapping outside the open dropdown closes it.
+       * Invisible and non-interactive whenever the menu is closed or the
+       * viewport is wide enough that `.header-menu-panel` isn't a dropdown
+       * in the first place (see its plain, non-media-query rule). */}
+      {mobileMenuOpen && <div className="mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)} />}
 
       {totalCost.length > 0 && (
         <div className="total-cost-bar">
@@ -933,6 +1047,15 @@ function App() {
             // derived from that. A custom handler here would only fight it
             // and break multi-select.
             deleteKeyCode={['Backspace', 'Delete']}
+            // Explicit rather than relying on defaults: a one-finger drag
+            // on empty canvas pans, a two-finger pinch zooms, and a
+            // two-finger drag also pans -- the standard touch map for a
+            // pannable/zoomable surface, so the graph is fully
+            // navigable by hand on a phone or tablet, not just a mouse.
+            panOnDrag
+            zoomOnPinch
+            zoomOnScroll
+            panOnScroll={false}
             fitView
           >
             <Background />
@@ -1052,22 +1175,52 @@ function App() {
                   )}
 
                   <h3>What happened?</h3>
-                  {guideOutgoingEdges.length === 0 ? (
-                    <p className="muted">This is an end point — nothing crafted further from here.</p>
-                  ) : (
+                  {(guideDirectReady.length > 0 || guideOtherBranches.length > 0) && (
                     <div className="guide-choices">
-                      {guideOutgoingEdges.map(edge => {
+                      {guideDirectReady.map(edge => {
                         const targetNode = nodes.find(n => n.id === edge.target)
                         const label =
                           typeof edge.label === 'string' && edge.label
                             ? edge.label
                             : (targetNode?.data.label ?? 'Continue')
                         return (
-                          <button key={edge.id} className="guide-choice-btn" onClick={() => guideChoose(edge.id)}>
-                            {label} →
+                          <button key={edge.id} className="guide-choice-btn" onClick={() => guideChoose(edge.target)}>
+                            {/* The label may contain {{currency:...}}/{{item:...}}
+                             * icon shortcodes (same as the edge's own label
+                             * badge on the canvas) -- render them rather than
+                             * showing the raw shortcode text. */}
+                            <span dangerouslySetInnerHTML={{ __html: renderLabelHtml(label) }} />
+                            {' →'}
                           </button>
                         )
                       })}
+                      {/* Not reachable by a direct edge from here -- another
+                       * starting branch that hasn't been walked yet, or a
+                       * join that just cleared because its last branch
+                       * finished elsewhere. Tagged so it doesn't look like
+                       * a normal continuation of this step. */}
+                      {guideOtherBranches.map(node => (
+                        <button key={node.id} className="guide-choice-btn" onClick={() => guideChoose(node.id)}>
+                          <span className="guide-choice-branch-tag">Other branch</span>
+                          {node.data.label}
+                          {' →'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {guideDirectEdges.length === 0 && guideOtherBranches.length === 0 && guidePendingHere.length === 0 && (
+                    <p className="muted">This is an end point — nothing crafted further from here.</p>
+                  )}
+
+                  {guidePendingHere.length > 0 && (
+                    <div className="guide-pending">
+                      {guidePendingHere.map(({ node, waitingOn }) => (
+                        <p className="muted guide-pending-item" key={node.id}>
+                          <strong>{node.data.label}</strong> is waiting on{' '}
+                          {waitingOn.map(w => w.data.label).join(', ')} from the other branch before it's available.
+                        </p>
+                      ))}
                     </div>
                   )}
 
