@@ -84,70 +84,15 @@ function withEdgeType(e: Edge): Edge {
 
 /** A fresh, empty graph to start from when the user clicks "New". */
 function blankGraph(): { nodes: Node<CraftNodeData>[]; edges: Edge[] } {
-  return {
-    nodes: [
-      {
-        id: `node-${Date.now()}`,
-        type: 'craftNode',
-        position: { x: 150, y: 150 },
-        data: { label: 'Start', action: 'Base item', modifiers: [], notes: '' },
-      },
-    ],
-    edges: [],
-  }
+  return { nodes: [], edges: [] }
 }
 
-const initialNodes: Node<CraftNodeData>[] = [
-  {
-    id: 'node-1',
-    type: 'craftNode',
-    position: { x: 100, y: 150 },
-    data: {
-      label: 'Start',
-      action: 'Base item',
-      modifiers: [],
-      notes: 'Start with the item you want to craft.',
-    },
-  },
-  {
-    id: 'node-2',
-    type: 'craftNode',
-    position: { x: 420, y: 150 },
-    selected: true,
-    data: {
-      label: 'Essence craft',
-      action: 'Essence of Horror',
-      modifiers: [
-        {
-          id: 'm1',
-          text: '+2 to Level of all Spell Skill Gems',
-          textColor: '#aa9e82',
-          tags: [DEFAULT_TAG_PRESETS[4], DEFAULT_TAG_PRESETS[0]],
-        },
-        {
-          id: 'm2',
-          text: '+120 to maximum Life',
-          textColor: '#8888ff',
-          tags: [DEFAULT_TAG_PRESETS[0]],
-        },
-      ],
-      notes: 'Use {{currency:Orb of Annulment}} first if too many junk mods show up.',
-      costs: [{ currency: 'Essence of Horror', amount: 1, chance: 100 }],
-    },
-  },
-]
-
-const initialEdges: Edge[] = [
-  {
-    id: 'e1',
-    source: 'node-1',
-    target: 'node-2',
-    sourceHandle: RIGHT_SOURCE_ID,
-    targetHandle: LEFT_TARGET_ID,
-    type: 'removable',
-    markerEnd: EDGE_MARKER,
-  },
-]
+// A brand-new session starts with nothing on the canvas -- the sidebar's
+// getting-started panel (shown whenever nothing is selected) explains
+// how to add the first node, so a pre-built sample isn't needed to show
+// what a graph looks like.
+const initialNodes: Node<CraftNodeData>[] = []
+const initialEdges: Edge[] = []
 
 function App() {
   // Triggers (once) the background load of the real-name catalog used to
@@ -187,6 +132,11 @@ function App() {
   const sidebarResizing = useRef(false)
   const notesRef = useRef<HTMLTextAreaElement>(null)
   const { screenToFlowPosition, fitView } = useReactFlow()
+  // The canvas section's own on-screen position/size -- used by addNode
+  // to drop a new node at the center of whatever's currently in view,
+  // rather than a fixed spot that drifts off-screen once you've panned
+  // or zoomed away from it.
+  const canvasRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth))
@@ -665,12 +615,32 @@ function App() {
     [screenToFlowPosition, setNodes, setEdges],
   )
 
+  // Successive Add-node clicks nudge around the center a little instead
+  // of landing in the exact same spot, so they don't stack invisibly on
+  // top of each other -- wraps after 8 so a long run of adds spirals
+  // near the center rather than drifting away from it.
+  const addNodeOffsetRef = useRef(0)
+
   function addNode() {
     const id = `node-${Date.now()}`
+    const bounds = canvasRef.current?.getBoundingClientRect()
+    const center = bounds
+      ? screenToFlowPosition({ x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 })
+      : { x: 400, y: 300 }
+    const step = addNodeOffsetRef.current % 8
+    addNodeOffsetRef.current += 1
+    const angle = (step / 8) * Math.PI * 2
+    const radius = 26
     const node: Node<CraftNodeData> = {
       id,
       type: 'craftNode',
-      position: { x: 250 + nodes.length * 30, y: 300 + nodes.length * 20 },
+      // -90/-30 centers the node's own box on that point, matching the
+      // same offset onConnectEnd uses when dropping a node under the
+      // cursor.
+      position: {
+        x: center.x - 90 + Math.cos(angle) * radius,
+        y: center.y - 30 + Math.sin(angle) * radius,
+      },
       data: {
         label: 'New crafting step',
         action: '',
@@ -1047,7 +1017,7 @@ function App() {
       )}
 
       <main style={{ ['--sidebar-width' as any]: `${sidebarCollapsed ? 0 : sidebarWidth}px` }}>
-        <section className="canvas">
+        <section className="canvas" ref={canvasRef}>
           <ReactFlow
             nodes={renderNodes}
             edges={renderEdges}
