@@ -376,13 +376,29 @@ function App() {
   }
 
   function startGuide() {
-    const startId = selectedId ?? guideStartCandidates()[0]?.id
+    const candidates = guideStartCandidates()
+    // Only honor the current selection as the starting point if it's
+    // actually one of the graph's real starts (no incoming edges) --
+    // otherwise whatever node was last selected while editing (which
+    // could be anywhere in the graph) would silently hijack where the
+    // guide begins. Deliberately selecting one of several valid starts
+    // still works, to control which branch it opens on.
+    const startId = (selectedId && candidates.some(n => n.id === selectedId))
+      ? selectedId
+      : candidates[0]?.id
     if (!startId) {
       setStatus('Select a node to start the guide from.')
       return
     }
     setGuide({ path: [startId] })
     selectOnly(startId)
+    // The guide panel lives in the sidebar, so make sure it's actually
+    // showing -- otherwise, on mobile especially, starting the guide
+    // does nothing visible until the sidebar is opened by hand. Likewise
+    // close the header's mobile dropdown, since "Guide me" lives in it
+    // and leaving it open would just cover the sidebar it opens.
+    setSidebarCollapsed(false)
+    setMobileMenuOpen(false)
   }
 
   /** Advances to `nodeId`, whether that's the target of a direct edge
@@ -925,6 +941,9 @@ function App() {
           >
             {mobileMenuOpen ? '✕' : '☰'}
           </button>
+          <span className="header-disclaimer">
+            Not affiliated with or endorsed by Grinding Gear Games
+          </span>
         </div>
 
         <div className="header-workspace">
@@ -1395,7 +1414,46 @@ function App() {
               </p>
             </div>
           ) : (
-            <p className="muted">Select a node to edit it.</p>
+            <div className="empty-state-help">
+              <h2 style={{ border: 'none', padding: 0, margin: 0 }}>Getting started</h2>
+              <p className="muted">Nothing selected — here's the short version of how this works.</p>
+
+              <h3>Building the plan</h3>
+              <p className="muted">
+                <strong>+ Add node</strong> drops a new crafting step onto the canvas. Drag from the edge of one
+                node to another to connect them — an edge means "this step leads to that one." A node with more
+                than one outgoing edge is a branch point (e.g. different outcomes of an essence craft); click an
+                edge to give it a label describing which outcome it represents.
+              </p>
+
+              <h3>Selecting nodes</h3>
+              <p className="muted">
+                Click a node to edit it here. To work on several at once, Shift-click each one, or drag a
+                selection box across empty canvas — that's the quickest way to duplicate or delete a whole batch
+                of steps together.
+              </p>
+
+              <h3>Costs</h3>
+              <p className="muted">
+                Each step can list one or more costs: a currency, how much it takes per attempt, and the chance
+                of success if it's not guaranteed. Every node's costs get combined into the total shown along the
+                top of the canvas, so you can see the expected spend for the whole plan at a glance.
+              </p>
+
+              <h3>Modifiers</h3>
+              <p className="muted">
+                A node's modifiers are the affixes the item is meant to have once that step's done — add them one
+                at a time, or use <strong>Paste item</strong> to fill them in automatically from an item's text.
+                They're just documentation for the step; they don't affect the cost calculation.
+              </p>
+
+              <h3>Walking through it</h3>
+              <p className="muted">
+                <strong>Guide me</strong> steps through the graph one node at a time, asking what actually
+                happened at each branch — handy for following your own plan later without re-reading the whole
+                graph.
+              </p>
+            </div>
           )}
         </aside>
       </main>

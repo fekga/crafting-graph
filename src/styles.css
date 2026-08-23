@@ -152,8 +152,21 @@ header {
 .header-brand {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 10px 20px 8px;
+}
+
+/* Required wherever this tool is publicly reachable: it isn't an
+ * official Grinding Gear Games product, and that has to be visible
+ * without the person needing to dig for it, so it lives in the header
+ * strip that's on screen at all times rather than a footer or an
+ * about/settings page. */
+.header-disclaimer {
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  margin-left: 10px;
 }
 
 h1 {
@@ -535,6 +548,26 @@ aside textarea:focus,
   margin-top: 18px;
   font-size: 11.5px;
   line-height: 1.5;
+}
+
+/* --- Getting-started tips shown in the sidebar when nothing is selected --- */
+.empty-state-help h3 {
+  margin-top: 20px;
+  margin-bottom: 6px;
+}
+
+.empty-state-help h3:first-of-type {
+  margin-top: 22px;
+}
+
+.empty-state-help p {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.empty-state-help strong {
+  color: var(--gold);
+  font-weight: 600;
 }
 
 /* --- Guide mode panel (sidebar, while stepping through the graph) --- */
@@ -1893,6 +1926,12 @@ input[type="number"]::-webkit-outer-spin-button {
     font-size: 16px;
   }
 
+  .header-disclaimer {
+    flex-basis: 100%;
+    margin-left: 0;
+    font-size: 9px;
+  }
+
   .header-workspace {
     position: relative;
     padding: 8px 14px 10px;
@@ -1908,8 +1947,33 @@ input[type="number"]::-webkit-outer-spin-button {
     width: 100%;
   }
 
+  /* Desktop lets this wrap onto more rows as currencies pile up, which
+   * is fine with room to spare; on a phone that can turn into several
+   * rows permanently eating canvas space above the fold. Keep it to one
+   * compact row instead and let it scroll sideways -- everything is
+   * still reachable, it just isn't all visible at once by default. */
   .total-cost-bar {
-    padding: 8px 14px;
+    padding: 6px 14px;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .total-cost-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .total-cost-label {
+    flex-shrink: 0;
+    font-size: 10px;
+  }
+
+  .total-cost-chip {
+    flex-shrink: 0;
+    padding: 2px 7px;
+    font-size: 11px;
   }
 
   /* --- The actions/view-settings dropdown. Closed by default: no box,
