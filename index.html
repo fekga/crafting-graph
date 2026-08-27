@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
@@ -16,6 +16,27 @@
        slash — a relative reference there would resolve one directory too
        high (the domain root) instead of into /crafting-graph/. -->
   <link rel="icon" type="image/png" href="/crafting-graph/favicon.png" />
+  <!-- Fonts loaded here (rather than only via the @import in styles.css)
+       so the browser's preload scanner finds them while it's still
+       parsing the HTML, instead of only after it's fetched and parsed the
+       app's own CSS -- shaves a full request round-trip off how soon the
+       fonts start downloading, which was showing up as a render-blocking
+       delay.
+       display=optional (rather than swap): gives the font a brief window
+       to arrive from cache before first paint, and if it doesn't make
+       that window, keeps the fallback font for the rest of this page view
+       instead of swapping in later -- swap's late swap-in, once the font
+       did arrive, was showing up as two of the page's few layout shifts
+       (Cinzel/Inter's metrics don't quite match the fallback's). The
+       trade-off is a first-ever visit on a slow connection may render in
+       the fallback font for that load; every visit after is instant from
+       cache with no swap and no shift either way. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;650;700&family=Inter:wght@400;500;600&display=optional"
+  />
   <title>Crafting Graph</title>
 </head>
 

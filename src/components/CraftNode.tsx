@@ -14,19 +14,29 @@ export default function CraftNode({ id, data, selected, isConnectable }: NodePro
   // icons/notes upgrade from "not found yet" to the correct icon without
   // needing to touch anything.
   useItemNamesLoaded()
-  // Guide-mode highlight/dim/lock flags — injected at render time by
-  // App.tsx (see its renderNodes), not part of the node's actual saved
-  // data.
-  const guideFlags = data as CraftNodeData & {
+  // Guide/locked-mode flags — injected at render time by App.tsx (see its
+  // renderNodes), not part of the node's actual saved data.
+  // isExecutionLocked covers guide mode and the manual lock toggle (both
+  // mean "walking the plan, not editing it"); isGuideActive/isGuideDimmed/
+  // isGuidePreview are guide-only, marking the current step, everything
+  // else, and a "what happened?" choice being hovered (previewed without
+  // being committed to) respectively; isHoverHighlighted is manual-lock-
+  // only, marking whichever node the mouse is currently over.
+  const modeFlags = data as CraftNodeData & {
     isGuideActive?: boolean
     isGuideDimmed?: boolean
-    isGuideLocked?: boolean
+    isGuidePreview?: boolean
+    isHoverHighlighted?: boolean
+    isExecutionLocked?: boolean
+    onAddModifier?: () => void
   }
   const nodeClassName = [
     'craft-node',
     selected && 'craft-node-selected',
-    guideFlags.isGuideActive && 'craft-node-guide-active',
-    guideFlags.isGuideDimmed && 'craft-node-guide-dimmed',
+    modeFlags.isGuideActive && 'craft-node-guide-active',
+    modeFlags.isGuideDimmed && 'craft-node-guide-dimmed',
+    modeFlags.isGuidePreview && 'craft-node-guide-preview',
+    modeFlags.isHoverHighlighted && 'craft-node-hover-highlight',
   ]
     .filter(Boolean)
     .join(' ')
@@ -72,7 +82,7 @@ export default function CraftNode({ id, data, selected, isConnectable }: NodePro
       <Handle type="source" position={Position.Left} id={LEFT_SOURCE_ID} isConnectable={isConnectable} />
       <Handle type="target" position={Position.Left} id={LEFT_TARGET_ID} isConnectable={isConnectable} />
 
-      {!guideFlags.isGuideLocked && (
+      {!modeFlags.isExecutionLocked && (
         <>
           <button
             className="craft-node-duplicate"
@@ -129,6 +139,19 @@ export default function CraftNode({ id, data, selected, isConnectable }: NodePro
             </div>
           ))}
         </div>
+      )}
+
+      {!modeFlags.isExecutionLocked && (
+        <button
+          className="craft-node-add-mod-btn"
+          title="Add a modifier"
+          onClick={e => {
+            e.stopPropagation()
+            modeFlags.onAddModifier?.()
+          }}
+        >
+          + Modifier
+        </button>
       )}
 
       {data.costs && data.costs.filter(c => c.currency && c.amount > 0).length > 0 && (

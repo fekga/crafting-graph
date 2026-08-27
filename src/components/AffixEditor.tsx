@@ -1,6 +1,12 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { POE_TEXT_COLORS, hexToRgbTriple } from '../poeColors'
 import type { AffixTag, Modifier } from '../types'
+import { TAG_PRESET_ID_FOR_SOURCE, type ModifierEntry } from '../modData'
+
+// Lazy: only needed if "Search game mods..." below is actually clicked,
+// which most modifier edits never touch -- no reason for its search UI to
+// sit in the main bundle otherwise.
+const ModifierSearchModal = lazy(() => import('./ModifierSearchModal'))
 
 type Props = {
   modifier: Modifier | null
@@ -29,8 +35,23 @@ export default function AffixEditor({ modifier, tagPresets, onSave, onClose }: P
   const [newTagLabel, setNewTagLabel] = useState('')
   const [newTagColor, setNewTagColor] = useState(NEW_TAG_COLOR)
   const [customColorInput, setCustomColorInput] = useState(draft.textColor)
+  const [modSearchOpen, setModSearchOpen] = useState(false)
 
   const isEditing = modifier !== null
+
+  /** Fills the draft in from a picked real modifier, and -- only as a
+   * convenience, not a requirement -- turns on whichever tag preset
+   * conventionally matches its source (Prefix/Suffix/Implicit/Enchant/
+   * Crafted/Corrupted, see TAG_PRESET_ID_FOR_SOURCE), if it's still
+   * around -- the user can rename or delete those defaults, in which case
+   * this just does nothing rather than recreating one. */
+  function handlePickModifier(entry: ModifierEntry) {
+    setDraft(d => ({ ...d, text: entry.text }))
+    const wantedId = TAG_PRESET_ID_FOR_SOURCE[entry.source]
+    const preset = wantedId ? presets.find(t => t.id === wantedId) : undefined
+    if (preset && !isTagOn(preset.id)) toggleTag(preset)
+    setModSearchOpen(false)
+  }
 
   function isTagOn(tagId: string) {
     return draft.tags.some(t => t.id === tagId)
@@ -95,7 +116,12 @@ export default function AffixEditor({ modifier, tagPresets, onSave, onClose }: P
         </div>
 
         <div className="affix-editor-body">
-          <label>Modifier text</label>
+          <div className="row-between">
+            <label style={{ margin: 0 }}>Modifier text</label>
+            <button type="button" onClick={() => setModSearchOpen(true)}>
+              Search game mods…
+            </button>
+          </div>
           <textarea
             autoFocus
             className="affix-text-input"
@@ -241,6 +267,12 @@ export default function AffixEditor({ modifier, tagPresets, onSave, onClose }: P
           </button>
         </div>
       </div>
+
+      {modSearchOpen && (
+        <Suspense fallback={null}>
+          <ModifierSearchModal tagPresets={presets} onPick={handlePickModifier} onClose={() => setModSearchOpen(false)} />
+        </Suspense>
+      )}
     </div>
   )
 }

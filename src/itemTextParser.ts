@@ -1,7 +1,7 @@
 /**
- * Parses text copied from a Path of Exile item (Ctrl+C / Alt+Ctrl+C in
- * game), or pasted from Path of Building or Craft of Exile — both of those
- * tools read and write the same clipboard format the game uses, so one
+ * Parses text copied from a Path of Exile item (Ctrl+C in game), or
+ * pasted from Path of Building or Craft of Exile — both of those tools
+ * read and write the same clipboard format the game uses, so one
  * parser covers all three (Craft of Exile's own FAQ has you paste with
  * "Advanced mod descriptions" on and its "Copy" output round-trips through
  * PoB's item import, confirming they share this format).

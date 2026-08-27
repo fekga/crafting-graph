@@ -88,13 +88,12 @@ export default function ItemPasteModal({ tagPresets, onAdd, onClose }: Props) {
         </div>
 
         <p className="muted" style={{ marginTop: 0 }}>
-          Copy the item in-game with <strong>Alt+Ctrl+C</strong> — not the plain Ctrl+C copy. That's the one that
-          includes each modifier's Prefix/Suffix/Crafted/Fractured origin line, which is what this uses to tag
-          modifiers automatically; a plain Ctrl+C copy is missing those lines, so its mods would come through
-          untagged. Turn on "Advanced mod descriptions" in game options first, or Alt+Ctrl+C won't include them
-          either. Text copied from Path of Building or Craft of Exile works the same way, if it was itself sourced
-          from an Alt+Ctrl+C copy. Prefix vs. suffix still can't always be told apart from this text alone, so
-          double-check the tags it picks.
+          Copy the item in-game with <strong>Ctrl+C</strong>. That includes each modifier's
+          Prefix/Suffix/Crafted/Fractured origin line, which is what this uses to tag modifiers automatically —
+          turn on "Advanced mod descriptions" in game options first, or that line won't be there. Text copied
+          from Path of Building or Craft of Exile works the same way, if it was itself sourced from a copy with
+          advanced mod descriptions on. Prefix vs. suffix still can't always be told apart from this text alone,
+          so double-check the tags it picks.
         </p>
 
         {!parsed ? (

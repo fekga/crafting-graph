@@ -1,4 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:wght@400;500;600&display=swap');
+/* Cinzel/Inter are loaded via <link> tags in index.html, not an @import
+ * here -- an @import inside this file can only be discovered by the
+ * browser after this whole stylesheet has itself been fetched and parsed,
+ * a full extra round-trip later than a <link> the HTML parser sees
+ * immediately. That's a big deal for Google Fonts specifically, since it
+ * was showing up as both a render-blocking delay before First Contentful
+ * Paint and, worse, two visible layout shifts once the fonts arrived late
+ * and swapped in over the fallback font's different metrics. */
 
 /* A font by Jos Buivenga (exljbris) -> www.exljbris.com */
 @font-face {
@@ -18,6 +25,19 @@
 
 
 
+/* --- Theming ---------------------------------------------------------
+ * Every color in this stylesheet is either one of these tokens or a
+ * translucent rgba() built from one of the "-rgb" triples below (needed
+ * because CSS can't extract channels out of a #hex custom property) --
+ * that's what makes swapping the whole look a matter of redefining this
+ * one block per theme, via [data-theme] on <html> (see App.tsx's theme
+ * picker), rather than hunting down colors throughout the file.
+ *
+ * Deliberately NOT re-themed: --prefix/--suffix/--implicit/--enchant
+ * (the affix-tag category colors) and --danger/--danger-bg/--danger-text/
+ * --danger-bright, since those carry actual meaning (which tag category,
+ * "this is destructive") that should stay recognizable across themes
+ * rather than being restyled for mood. */
 :root {
   color-scheme: dark;
   --bg-void: #0a0806;
@@ -29,14 +49,137 @@
   --gold: #c8aa6e;
   --gold-bright: #e8cd8a;
   --text: #d8cbb2;
-  --text-muted: #8d7f68;
-  --text-dim: #5f5340;
+  --text-muted: #8f8169;
+  /* Brightened from the original #5f5340 -- that read as a nice subtle
+   * "third tier" dimmer than --text-muted, but only hit ~2.5:1 contrast
+   * against these backgrounds, well under WCAG AA's 4.5:1 for normal
+   * text (flagged by Lighthouse's color-contrast audit on .view-settings-
+   * label, but this same color backs the much more common .muted class
+   * too -- most hint/empty-state text in the app). This value is the
+   * least-bright version of the same hue that still clears 4.5:1 against
+   * every background it's actually used on, which unavoidably lands it
+   * very close to --text-muted -- there wasn't room left for a visibly
+   * distinct third tier once "still readable" was a hard requirement. */
+  --text-dim: #938063;
   --prefix: #6fb3c9;
   --suffix: #d99a4e;
   --implicit: #9b8cd9;
   --enchant: #6fcf97;
   --danger: #b0413e;
   --accent: #af6025;
+
+  --gold-rgb: 200, 170, 110;
+  --gold-bright-rgb: 230, 200, 140;
+  --border-bronze-light-rgb: 140, 106, 55;
+  --accent-rgb: 175, 96, 37;
+  --btn-highlight-rgb: 255, 220, 160;
+  --on-accent-text: #1a1206;
+  --btn-grad-hi: #2a2115;
+  --btn-grad-lo: #17130c;
+  --btn-hover-grad-hi: #3a2e1b;
+  --btn-hover-grad-lo: #1f190f;
+  --btn-primary-hover-hi: #f3dfa8;
+  --btn-subtle-bg: #201a10;
+  --panel-grad-hi: #1c150d;
+  --panel-grad-lo: #0f0b07;
+  --aside-grad-hi: #171009;
+  --aside-grad-lo: #120d08;
+  --modal-grad-hi: #17110a;
+  --modal-grad-lo: #0f0b07;
+  --node-grad-hi: #211a10;
+  --node-grad-lo: #14100a;
+  --modifier-grad-hi-rgb: 60, 45, 20;
+  --modifier-grad-lo-rgb: 20, 15, 9;
+  --text-bright: #f0e9d8;
+  --danger-bg: #2a1210;
+  --danger-text: #e2a6a3;
+  --danger-bright: #ff8a8a;
+}
+
+/* "Slate" -- a plain dark grey/white palette for anyone who finds the
+ * default bronze/gold too thematic. Every non-semantic token below gets
+ * a grey/white equivalent; affix-tag and danger colors are untouched. */
+:root[data-theme='slate'] {
+  --bg-void: #0a0a0a;
+  --bg-panel: #141414;
+  --bg-panel-raised: #1e1e1e;
+  --bg-input: #101010;
+  --border-bronze: #3d3d3d;
+  --border-bronze-light: #6b6b6b;
+  --gold: #cfcfcf;
+  --gold-bright: #f2f2f2;
+  --text: #dcdcdc;
+  --text-muted: #8f8f8f;
+  --text-dim: #878787;
+  --accent: #7a7a7a;
+
+  --gold-rgb: 207, 207, 207;
+  --gold-bright-rgb: 242, 242, 242;
+  --border-bronze-light-rgb: 107, 107, 107;
+  --accent-rgb: 122, 122, 122;
+  --btn-highlight-rgb: 255, 255, 255;
+  --on-accent-text: #141414;
+  --btn-grad-hi: #262626;
+  --btn-grad-lo: #141414;
+  --btn-hover-grad-hi: #323232;
+  --btn-hover-grad-lo: #1c1c1c;
+  --btn-primary-hover-hi: #ffffff;
+  --btn-subtle-bg: #1c1c1c;
+  --panel-grad-hi: #1a1a1a;
+  --panel-grad-lo: #0d0d0d;
+  --aside-grad-hi: #171717;
+  --aside-grad-lo: #0f0f0f;
+  --modal-grad-hi: #191919;
+  --modal-grad-lo: #0d0d0d;
+  --node-grad-hi: #202020;
+  --node-grad-lo: #131313;
+  --modifier-grad-hi-rgb: 50, 50, 50;
+  --modifier-grad-lo-rgb: 18, 18, 18;
+  --text-bright: #f2f2f2;
+}
+
+/* "Sapphire" -- matches the favicon's blue-crystal-and-gold look more
+ * literally: the warm bronze/brown neutrals become a cool blue-steel,
+ * while gold stays gold (and gets a touch brighter/more saturated, since
+ * it now has to read as the one warm/metallic accent against a cool
+ * background rather than blending into a whole warm palette). */
+:root[data-theme='sapphire'] {
+  --bg-void: #060911;
+  --bg-panel: #0e1524;
+  --bg-panel-raised: #16203a;
+  --bg-input: #0a0f1c;
+  --border-bronze: #2c3e63;
+  --border-bronze-light: #4d70ab;
+  --gold: #d4af37;
+  --gold-bright: #f5d576;
+  --text: #cfdaf0;
+  --text-muted: #7c8db3;
+  --text-dim: #7b89ab;
+  --accent: #3f7fd1;
+
+  --gold-rgb: 212, 175, 55;
+  --gold-bright-rgb: 245, 213, 118;
+  --border-bronze-light-rgb: 77, 112, 171;
+  --accent-rgb: 63, 127, 209;
+  --btn-highlight-rgb: 210, 225, 255;
+  --on-accent-text: #10131f;
+  --btn-grad-hi: #1a2740;
+  --btn-grad-lo: #0d1424;
+  --btn-hover-grad-hi: #24365a;
+  --btn-hover-grad-lo: #131f36;
+  --btn-primary-hover-hi: #f8e2a0;
+  --btn-subtle-bg: #131f36;
+  --panel-grad-hi: #101a2e;
+  --panel-grad-lo: #070b14;
+  --aside-grad-hi: #0d1524;
+  --aside-grad-lo: #060910;
+  --modal-grad-hi: #101827;
+  --modal-grad-lo: #070b12;
+  --node-grad-hi: #16223a;
+  --node-grad-lo: #0a1120;
+  --modifier-grad-hi-rgb: 30, 50, 85;
+  --modifier-grad-lo-rgb: 10, 16, 28;
+  --text-bright: #e6eefc;
 }
 
 * {
@@ -49,7 +192,7 @@ body,
   margin: 0;
   width: 100%;
   height: 100%;
-  font-family: 'Spectral', Georgia, serif;
+  font-family: 'Inter', system-ui, sans-serif;
   /* The app is a single fixed-size screen, not a scrolling page -- so
    * disable page-level scroll/bounce/pull-to-refresh entirely. Without
    * this, a touch-drag meant to pan the React Flow canvas can instead (or
@@ -68,7 +211,7 @@ body {
   background: var(--bg-void);
   color: var(--text);
   background-image:
-    radial-gradient(ellipse at top, rgba(175, 96, 37, 0.06), transparent 60%),
+    radial-gradient(ellipse at top, rgba(var(--accent-rgb), 0.06), transparent 60%),
     var(--noise-texture);
   background-blend-mode: normal, overlay;
 }
@@ -80,27 +223,34 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
 
 button {
   border: 1px solid var(--border-bronze);
-  background: linear-gradient(180deg, #2a2115, #17130c);
+  background: linear-gradient(180deg, var(--btn-grad-hi), var(--btn-grad-lo));
   color: var(--gold);
   border-radius: 3px;
   padding: 8px 12px;
   cursor: pointer;
   font-family: 'Cinzel', serif;
   font-size: 12px;
+  /* Between semibold and bold -- 600 alone read as a bit thin at this
+   * size/letter-spacing, but 700 (bold) was too heavy. Cinzel is a
+   * variable font on Google Fonts, so this in-between weight is a real
+   * distinct instance (see the @import above), not just a browser
+   * rounding 650 down/up to the nearest loaded weight. */
+  font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  box-shadow: inset 0 1px 0 rgba(255, 220, 160, 0.08), 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(var(--btn-highlight-rgb), 0.08), 0 1px 2px rgba(0, 0, 0, 0.5);
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 
 button:hover {
-  background: linear-gradient(180deg, #3a2e1b, #1f190f);
+  background: linear-gradient(180deg, var(--btn-hover-grad-hi), var(--btn-hover-grad-lo));
   border-color: var(--gold);
   color: var(--gold-bright);
 }
@@ -116,7 +266,7 @@ button:disabled {
 }
 
 button:disabled:hover {
-  background: linear-gradient(180deg, #2a2115, #17130c);
+  background: linear-gradient(180deg, var(--btn-grad-hi), var(--btn-grad-lo));
   border-color: var(--border-bronze);
   color: var(--gold);
 }
@@ -142,7 +292,7 @@ header {
   border-bottom: 1px solid var(--border-bronze);
   background:
     var(--noise-texture),
-    linear-gradient(180deg, #1c150d, #0f0b07);
+    linear-gradient(180deg, var(--panel-grad-hi), var(--panel-grad-lo));
   background-blend-mode: overlay;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
@@ -166,7 +316,12 @@ header {
   color: var(--text-dim);
   font-size: 10px;
   letter-spacing: 0.02em;
-  margin-left: 10px;
+  /* Pushed to the brand row's right edge, clear of the branding on the
+   * left and the plan title/name next to it -- required legal notice, but
+   * de-emphasized by tucking it up out of the way rather than inline
+   * with everything else. */
+  margin-left: auto;
+  order: 2;
 }
 
 h1 {
@@ -179,12 +334,12 @@ h1 {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  text-shadow: 0 2px 10px rgba(200, 170, 110, 0.18);
+  text-shadow: 0 2px 10px rgba(var(--gold-rgb), 0.18);
 }
 
 .app-favicon {
-  width: 30px;
-  height: 30px;
+  width: 42px;
+  height: 42px;
   object-fit: contain;
   flex-shrink: 0;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
@@ -198,16 +353,21 @@ h1 {
   flex-wrap: wrap;
   gap: 10px 22px;
   padding: 10px 20px 14px;
-  border-top: 1px solid rgba(140, 106, 55, 0.25);
+  border-top: 1px solid rgba(var(--border-bronze-light-rgb), 0.25);
 }
 
 .header-title-block {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-right: 4px;
-  min-height: 56px;
   justify-content: center;
+  margin-left: 4px;
+  /* Visually right after the app title regardless of DOM position (see
+   * App.tsx) -- the disclaimer is order:2 below so it still reads after
+   * this rather than wedged in between them. Both reset to a mobile-
+   * appropriate order in the media query, where the hamburger toggle
+   * also needs a defined slot in the sequence once it's actually shown. */
+  order: 1;
 }
 
 .header-eyebrow {
@@ -246,7 +406,7 @@ h1 {
   display: flex;
   gap: 7px;
   padding-left: 20px;
-  border-left: 1px solid rgba(140, 106, 55, 0.3);
+  border-left: 1px solid rgba(var(--border-bronze-light-rgb), 0.3);
 }
 
 .button-group:first-child {
@@ -256,14 +416,14 @@ h1 {
 
 .btn-primary {
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  color: #1a1206;
+  color: var(--on-accent-text);
   border-color: var(--gold-bright);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(180deg, #f3dfa8, var(--gold-bright));
-  color: #1a1206;
+  background: linear-gradient(180deg, var(--btn-primary-hover-hi), var(--gold-bright));
+  color: var(--on-accent-text);
   border-color: var(--gold-bright);
 }
 
@@ -307,7 +467,7 @@ h3 {
 .status {
   color: var(--text-muted);
   font-size: 11px;
-  font-family: 'Spectral', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-style: italic;
 }
 
@@ -317,12 +477,18 @@ h3 {
 .view-settings {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-left: auto;
-  padding: 7px 14px;
+  gap: 10px;
+  margin-left: 14px;
+  padding: 4px 10px;
   background: var(--bg-panel);
   border: 1px solid var(--border-bronze);
   border-radius: 5px;
+  /* Tied with .header-title-block's own order:1 -- DOM order (this comes
+   * right after it in App.tsx) breaks the tie, so it renders immediately
+   * following "Current plan" rather than jumping ahead of it (anything
+   * left at the default order:0 would render before an order:1 item
+   * regardless of where it actually sits in the markup). */
+  order: 1;
 }
 
 .view-settings-label {
@@ -345,8 +511,13 @@ h3 {
 }
 
 .icon-size-control input[type="range"] {
-  width: 90px;
+  width: 70px;
   accent-color: var(--gold, #c8aa6e);
+}
+
+.sidebar-side-toggle {
+  font-size: 10.5px;
+  padding: 4px 9px;
 }
 
 .animate-edges-control {
@@ -368,11 +539,81 @@ h3 {
   cursor: pointer;
 }
 
+/* A plain toggle button rather than a checkbox+label -- a fair bit more
+ * compact (no separate input box, shorter text), which matters here since
+ * this is the one control in the row whose own state change (revealing
+ * the league picker next to it) makes the row wider, right when it's
+ * toggled on. */
+.show-prices-control {
+  font-size: 10.5px;
+  padding: 4px 9px;
+}
+
+.show-prices-control-active {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  background: linear-gradient(180deg, var(--btn-hover-grad-hi), var(--btn-hover-grad-lo));
+}
+
+.price-league-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price-league-control select,
+.theme-picker {
+  width: 100px;
+  padding: 3px 6px;
+  font-size: 11px;
+  border: 1px solid var(--border-bronze);
+  border-radius: 3px;
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.price-league-control select:focus,
+.theme-picker:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.theme-picker {
+  width: 120px;
+}
+
+.price-league-control button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
 main {
   min-height: 0;
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 7px var(--sidebar-width, 360px);
+}
+
+/* Sidebar-on-the-left variant (see the toggle in .view-settings): swaps
+ * which grid track is the flexible canvas vs. the fixed-width sidebar,
+ * then reorders the three children (DOM order stays canvas/resizer/aside
+ * either way -- only their visual position changes) to match. */
+.main-sidebar-left {
+  grid-template-columns: var(--sidebar-width, 360px) 7px minmax(0, 1fr);
+}
+
+.main-sidebar-left .canvas {
+  order: 3;
+}
+
+.main-sidebar-left .sidebar-resizer {
+  order: 2;
+}
+
+.main-sidebar-left aside {
+  order: 1;
+  border-left: none;
+  border-right: 1px solid var(--border-bronze);
 }
 
 .canvas {
@@ -401,7 +642,7 @@ main {
 }
 
 .react-flow__controls-button:hover {
-  background: #2a2115;
+  background: var(--btn-grad-hi);
 }
 
 .react-flow__minimap {
@@ -412,11 +653,29 @@ main {
 
 .react-flow__edge-path {
   stroke: var(--border-bronze-light);
+  stroke-width: 1.75;
 }
 
 .react-flow__edge.selected .react-flow__edge-path,
 .react-flow__edge:hover .react-flow__edge-path {
   stroke: var(--gold);
+}
+
+/* Every edge touching the currently-selected node (or, in guide mode, the
+ * current step) -- a lighter cue than the guide-preview highlight below,
+ * since several of these can be lit up at once. */
+.react-flow__edge.craft-edge-connected .react-flow__edge-path {
+  stroke: var(--gold);
+  stroke-width: 3;
+}
+
+/* The specific edge a hovered "what happened?" choice leads through --
+ * matches craft-node-guide-preview's gold so the two read as one
+ * highlighted path from the current step to the previewed node. Thicker
+ * than craft-edge-connected so it still stands out layered over it. */
+.react-flow__edge.craft-edge-guide-preview .react-flow__edge-path {
+  stroke: var(--gold);
+  stroke-width: 3.5;
 }
 
 .react-flow__arrowhead polyline,
@@ -452,8 +711,18 @@ aside {
   border-left: 1px solid var(--border-bronze);
   background:
     var(--noise-texture),
-    linear-gradient(180deg, #171009, #120d08);
+    linear-gradient(180deg, var(--aside-grad-hi), var(--aside-grad-lo));
   background-blend-mode: overlay;
+}
+
+/* Collapsed/hidden (0px grid track): padding and border can't shrink
+ * below their own size just because the track did, so without this the
+ * sidebar would still show a ~40px sliver (its padding+border) even at
+ * "0 width" -- most noticeable in locked mode, which is meant to hide it
+ * completely rather than leave an empty strip behind. */
+.aside-hidden {
+  padding: 0;
+  border: none;
 }
 
 /* --- Sidebar resize handle + collapse toggle --- */
@@ -501,6 +770,30 @@ aside {
   left: auto;
   right: 0;
   transform: none;
+}
+
+/* Same reasoning, mirrored: a collapsed left-anchored sidebar's resizer
+ * track sits flush against the viewport's LEFT edge instead. Higher
+ * specificity than the rule above (two classes vs. one) wins regardless
+ * of source order. */
+.sidebar-resizer-left.sidebar-resizer-collapsed .sidebar-toggle {
+  left: 0;
+  right: auto;
+  transform: none;
+}
+
+/* The global button:active press effect (translateY(1px)) would otherwise
+ * overwrite this button's own centering transform outright -- since
+ * `transform` doesn't compose across rules, that dropped the
+ * translateX(-50%) the instant it was pressed, snapping it sideways for
+ * the duration of the click. Restate each state's base transform alongside
+ * the press offset instead of letting the generic button:active win. */
+.sidebar-toggle:active {
+  transform: translateX(-50%) translateY(1px);
+}
+
+.sidebar-resizer-collapsed .sidebar-toggle:active {
+  transform: translateY(1px);
 }
 
 aside label {
@@ -560,9 +853,18 @@ aside textarea:focus,
   margin-top: 22px;
 }
 
+/* Deliberately not .muted here -- that class (dim, italic) is meant for
+ * secondary one-line hints elsewhere in the app, not a whole panel of
+ * primary tutorial copy. Brighter and a touch heavier than the app's
+ * normal body text too (not just var(--text)) -- on a near-black
+ * background, thin text at normal weight stays technically high-contrast
+ * but still reads as faint/blurry on a lot of displays; a bit more
+ * weight fixes that without shouting. */
 .empty-state-help p {
-  font-size: 12px;
-  line-height: 1.55;
+  color: var(--text-bright);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.6;
 }
 
 .empty-state-help strong {
@@ -580,11 +882,55 @@ aside textarea:focus,
   margin-top: 20px;
 }
 
+/* A bit larger throughout than the same content reads elsewhere -- the
+ * guide panel is meant to be read at a glance while actually crafting,
+ * not scanned closely like the editor's own compact node-card previews,
+ * and .craft-node-notes in particular carries over its on-canvas-node
+ * size (11px, cramped by design for the small node card) which reads far
+ * too small for a full-width sidebar panel. */
+.guide-panel .craft-node-notes {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.guide-panel .modifier-text {
+  font-size: 14px;
+}
+
+.guide-panel .guide-node-title {
+  font-size: 16px;
+}
+
+/* Every button in the guide panel, bumped past the site-wide 650 -- gold
+ * text on the dark buttons here (Exit guide/Back/Restart) reads noticeably
+ * thinner than dark text on the gold choice buttons at the same numeric
+ * weight (light-on-dark text optically looks thinner than dark-on-light at
+ * an identical weight), so 650 wasn't enough to read as solid here even
+ * though it's plenty everywhere else. Also wins over .guide-choice-btn's
+ * own font-weight (this selector is more specific: class+element beats a
+ * single class) so every button in this panel ends up consistently bold. */
+.guide-panel button {
+  font-weight: 700;
+}
+
 .guide-node-title {
   margin: 0;
   font-family: 'Cinzel', serif;
   color: var(--gold-bright);
   font-size: 15px;
+}
+
+.guide-attempt-badge {
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: rgba(210, 0, 0, 0.18);
+  border: 1px solid rgba(210, 0, 0, 0.5);
+  color: var(--danger-bright);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .guide-modifiers {
@@ -600,6 +946,20 @@ aside textarea:focus,
   gap: 8px;
 }
 
+.guide-spent-hint {
+  margin: 2px 0 8px;
+  font-size: 11px;
+}
+
+.guide-spent-toggle {
+  font-size: 10.5px;
+  padding: 3px 9px;
+}
+
+.guide-spent-summary {
+  margin: 6px 0 0;
+}
+
 .guide-choices {
   display: flex;
   flex-direction: column;
@@ -610,14 +970,14 @@ aside textarea:focus,
   text-align: left;
   padding: 10px 14px;
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-  color: #1a1206;
+  color: var(--on-accent-text);
   border-color: var(--gold-bright);
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .guide-choice-btn:hover {
-  background: linear-gradient(180deg, #f3dfa8, var(--gold-bright));
-  color: #1a1206;
+  background: linear-gradient(180deg, var(--btn-primary-hover-hi), var(--gold-bright));
+  color: var(--on-accent-text);
 }
 
 /* Icon shortcodes in a guide choice's label render as plain <img> tags
@@ -712,18 +1072,44 @@ aside textarea:focus,
 }
 
 .guide-pending-item {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   font-size: 11px;
   line-height: 1.5;
 }
 
+.guide-pending-item p {
+  margin: 0;
+}
+
 .guide-pending-item + .guide-pending-item {
-  margin-top: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-bronze);
 }
 
 .guide-pending-item strong {
   color: var(--gold);
   font-weight: 600;
+}
+
+/* A deliberate override, not the normal "next step" choice -- toned down
+ * (outline style instead of the solid gold fill) and smaller, so reaching
+ * for it still reads as the exception, not the default action. */
+.guide-skip-btn {
+  align-self: flex-start;
+  padding: 6px 11px;
+  font-size: 10.5px;
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border-bronze-light);
+}
+
+.guide-skip-btn:hover {
+  background: rgba(var(--gold-rgb), 0.1);
+  color: var(--gold-bright);
+  border-color: var(--gold);
 }
 
 .guide-controls {
@@ -753,7 +1139,7 @@ aside textarea:focus,
   margin-bottom: 9px;
   border: 1px solid var(--border-bronze);
   border-radius: 4px;
-  background: linear-gradient(180deg, rgba(60, 45, 20, 0.35), rgba(20, 15, 9, 0.35));
+  background: linear-gradient(180deg, rgba(var(--modifier-grad-hi-rgb), 0.35), rgba(var(--modifier-grad-lo-rgb), 0.35));
 }
 
 .saved {
@@ -762,7 +1148,7 @@ aside textarea:focus,
   text-align: left;
   margin-bottom: 6px;
   text-transform: none;
-  font-family: 'Spectral', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   color: var(--text);
 }
@@ -784,30 +1170,46 @@ hr {
   min-width: 160px;
   background:
     var(--noise-texture),
-    linear-gradient(180deg, #211a10, #14100a);
+    linear-gradient(180deg, var(--node-grad-hi), var(--node-grad-lo));
   background-blend-mode: overlay;
   border: 1px solid var(--border-bronze);
   border-radius: 5px;
   padding: 10px 12px;
   color: var(--text);
   font-size: 13px;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 220, 160, 0.05);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(var(--btn-highlight-rgb), 0.05);
   height: auto;
 }
 
-.craft-node-selected {
+.craft-node-selected,
+.craft-node-hover-highlight {
   border-color: var(--gold);
-  box-shadow: 0 0 0 1px var(--gold), 0 0 14px rgba(200, 170, 110, 0.35);
+  box-shadow: 0 0 0 1px var(--gold), 0 0 14px rgba(var(--gold-rgb), 0.35);
 }
 
 .craft-node-guide-active {
   border-color: var(--gold-bright);
-  box-shadow: 0 0 0 2px var(--gold-bright), 0 0 24px rgba(230, 200, 140, 0.6);
+  box-shadow: 0 0 0 2px var(--gold-bright), 0 0 24px rgba(var(--gold-bright-rgb), 0.6);
 }
 
 .craft-node-guide-dimmed {
   opacity: 0.35;
   filter: saturate(0.6);
+}
+
+/* A "what happened?" choice being hovered in the guide panel -- previews
+ * its target node without committing to it, so it needs its own visual
+ * distinct from both the current step (guide-active, gold-bright) and the
+ * general dim applied to everything else -- plain gold (a notch dimmer
+ * than guide-active's gold-bright) keeps it in the same "this matters"
+ * gold family rather than introducing an unrelated accent hue, which read
+ * oddly theme-to-theme (e.g. an electric blue glow on the Sapphire theme,
+ * where --accent is blue rather than the bronze/copper it is by default). */
+.craft-node-guide-preview {
+  opacity: 1;
+  filter: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px var(--gold), 0 0 20px rgba(var(--gold-rgb), 0.5);
 }
 
 .craft-node-remove {
@@ -822,9 +1224,9 @@ hr {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #2a1210;
+  background: var(--danger-bg);
   border: 1px solid var(--danger);
-  color: #e2a6a3;
+  color: var(--danger-text);
   font-size: 13px;
   opacity: 0;
   transition: opacity 0.15s;
@@ -851,7 +1253,7 @@ hr {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #201a10;
+  background: var(--btn-subtle-bg);
   border: 1px solid var(--border-bronze-light);
   color: var(--gold);
   font-size: 8px;
@@ -956,31 +1358,121 @@ hr {
   min-width: 100px;
 }
 
+.cost-amount-control {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+}
+
 .cost-amount {
-  width: 76px !important;
+  width: 70px !important;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+  /* The custom .cost-amount-steppers buttons replace these -- see the
+   * comment at their JSX for why (a real color property to theme a native
+   * spin button doesn't exist, only an image filter that can't track the
+   * active theme). */
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.cost-amount::-webkit-inner-spin-button,
+.cost-amount::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.cost-amount-steppers {
+  display: flex;
+  flex-direction: column;
+}
+
+.cost-amount-step {
+  flex: 1;
+  width: 20px;
+  padding: 0;
+  font-size: 7px;
+  line-height: 1;
+  border-radius: 0;
+}
+
+.cost-amount-steppers .cost-amount-step:first-child {
+  border-top-right-radius: 3px;
+  border-bottom: none;
+}
+
+.cost-amount-steppers .cost-amount-step:last-child {
+  border-bottom-right-radius: 3px;
+}
+
+.cost-chance-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex: none;
 }
 
-.cost-chance {
-  width: 66px !important;
-  flex: none;
+/* Fully custom track + thumb, rather than relying on accent-color alone --
+ * the native thumb sits centered on the value's raw fraction of the
+ * track's own width, so at the very ends (0%/100%) roughly half the thumb
+ * overhangs past the track, making a maxed-out slider look like it's set
+ * to more than 100%. Turning off the native appearance and drawing the
+ * fill as a gradient stopping at --fill (set inline per current value --
+ * see the JSX) keeps the thumb's travel range exactly within the track's
+ * own bounds instead. */
+/* The extra `.cost-chance-control` ancestor in this selector (rather than
+ * just `.cost-chance`) is load-bearing, not decorative -- it's what gives
+ * this enough specificity to beat the generic `aside input:not([type=
+ * "checkbox"])` rule's width/border/background/padding, which would
+ * otherwise stretch this to 100% width and reintroduce a chunky default
+ * border/padding around what's supposed to be a slim custom track. */
+.cost-chance-control .cost-chance {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 80px;
+  height: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--gold) var(--fill, 0%),
+    var(--bg-input) var(--fill, 0%)
+  );
+  outline: none;
+  cursor: pointer;
 }
 
-.cost-chance-suffix {
+.cost-chance::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  border: 1px solid var(--gold);
+  cursor: pointer;
+}
+
+.cost-chance::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  border: 1px solid var(--gold);
+  cursor: pointer;
+}
+
+.cost-chance::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.cost-chance-value {
+  min-width: 30px;
   color: var(--text-muted);
   font-size: 12px;
-  margin-left: -3px;
-}
-
-/* Native number-input spin arrows default to a stark white/black look
- * that clashes with the theme — recolor them toward the gold accent
- * instead (Firefox doesn't expose enough to theme its version, so this
- * only affects Chromium/WebKit browsers; it's a harmless no-op elsewhere). */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  opacity: 1;
-  filter: invert(66%) sepia(46%) saturate(430%) hue-rotate(358deg) brightness(1.05);
-  cursor: pointer;
 }
 
 /* --- Cost chips on the node card --- */
@@ -1012,15 +1504,63 @@ input[type="number"]::-webkit-outer-spin-button {
   color: var(--text-muted);
 }
 
-/* --- Total cost bar --- */
-.total-cost-bar {
+/* --- Cost breakdown button --- */
+/* Sits in the header next to Guide me, rather than what used to be a full
+ * row of currency chips permanently taking up its own bar between the
+ * header and the canvas -- distracting, and mostly redundant with the
+ * per-node cost already shown on each node. Opens CostBreakdownModal. */
+.cost-breakdown-toggle {
+  font-size: 12px;
+  padding: 5px 12px;
+}
+
+.cost-breakdown-modal {
+  width: min(520px, 100%);
+}
+
+.cost-breakdown-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.cost-breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-bronze);
+  border-radius: 4px;
+  background: var(--bg-panel-raised);
+}
+
+.cost-breakdown-step-name {
+  font-size: 13px;
+  color: var(--text);
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cost-breakdown-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.cost-breakdown-total {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  padding: 8px 20px;
-  border-bottom: 1px solid var(--border-bronze);
-  background: var(--bg-panel);
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-bronze);
 }
 
 .total-cost-label {
@@ -1048,6 +1588,22 @@ input[type="number"]::-webkit-outer-spin-button {
   width: 16px;
   height: 16px;
   object-fit: contain;
+}
+
+/* The "≈ N chaos (M divine)" line/chip added after a cost breakdown when
+ * price conversion is turned on -- styled distinctly from the per-
+ * currency chips it follows, since it's a derived estimate rather than
+ * an entry the person actually typed in. */
+.price-summary {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: rgba(var(--gold-rgb), 0.12);
+  border: 1px dashed var(--gold);
+  color: var(--gold-bright);
+  font-size: 12px;
+  font-style: italic;
 }
 
 /* --- Modifier rows --- */
@@ -1174,7 +1730,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .modal {
   background:
     var(--noise-texture),
-    linear-gradient(180deg, #17110a, #0f0b07);
+    linear-gradient(180deg, var(--modal-grad-hi), var(--modal-grad-lo));
   background-blend-mode: overlay;
   border: 1px solid var(--border-bronze-light);
   border-radius: 6px;
@@ -1227,7 +1783,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .category-tab-active {
   border-color: var(--gold);
   color: var(--gold-bright);
-  background: linear-gradient(180deg, #3a2e1b, #1f190f);
+  background: linear-gradient(180deg, var(--btn-hover-grad-hi), var(--btn-hover-grad-lo));
 }
 
 .modal-results {
@@ -1235,6 +1791,8 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
+  min-height: 0;
 }
 
 .affix-row {
@@ -1244,14 +1802,14 @@ input[type="number"]::-webkit-outer-spin-button {
   text-align: left;
   padding: 10px 11px;
   text-transform: none;
-  font-family: 'Spectral', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.015);
 }
 
 .affix-row:hover {
   border-color: var(--border-bronze-light);
-  background: rgba(200, 170, 110, 0.06);
+  background: rgba(var(--gold-rgb), 0.06);
 }
 
 .affix-text {
@@ -1282,13 +1840,13 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 9px 6px;
   text-align: center;
   text-transform: none;
-  font-family: 'Spectral', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   background: rgba(255, 255, 255, 0.015);
 }
 
 .currency-item:hover {
   border-color: var(--gold);
-  background: rgba(200, 170, 110, 0.08);
+  background: rgba(var(--gold-rgb), 0.08);
 }
 
 .currency-item img,
@@ -1348,7 +1906,7 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 2px 4px;
   color: var(--gold);
   text-transform: none;
-  font-family: 'Spectral', serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .art-crumb:disabled {
@@ -1395,7 +1953,7 @@ input[type="number"]::-webkit-outer-spin-button {
   padding: 10px 8px;
   text-align: left;
   text-transform: none;
-  font-family: 'Spectral', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   background: rgba(255, 255, 255, 0.015);
   font-size: 12.5px;
   white-space: nowrap;
@@ -1406,7 +1964,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .art-folder:hover {
   border-color: var(--gold);
-  background: rgba(200, 170, 110, 0.08);
+  background: rgba(var(--gold-rgb), 0.08);
 }
 
 /* Scrollbars, for a bit more atmosphere in webkit browsers */
@@ -1432,9 +1990,17 @@ input[type="number"]::-webkit-outer-spin-button {
 .edge-toolbar {
   position: absolute;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.edge-toolbar-buttons {
+  display: flex;
   align-items: center;
   gap: 5px;
-  z-index: 5;
   pointer-events: none;
 }
 
@@ -1501,6 +2067,15 @@ input[type="number"]::-webkit-outer-spin-button {
   color: var(--gold-bright);
 }
 
+.edge-icon-pick-img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+/* Mounted only while the toolbar itself is visible (see RemovableEdge.tsx)
+ * rather than always-present-but-faded the way this used to work, so no
+ * opacity/pointer-events toggle is needed here anymore. */
 .edge-remove {
   width: 22px;
   height: 22px;
@@ -1511,23 +2086,38 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #2a1210;
+  background: var(--danger-bg);
   border: 1px solid var(--danger);
-  color: #e2a6a3;
+  color: var(--danger-text);
   font-size: 14px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.1s;
-}
-
-.edge-remove-visible {
-  opacity: 1;
   pointer-events: all;
 }
 
-.edge-remove-visible:hover {
+.edge-remove:hover {
   background: var(--danger);
   color: #fff;
+}
+
+.edge-invert {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 50%;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-bronze);
+  color: var(--text);
+  font-size: 12px;
+  pointer-events: all;
+}
+
+.edge-invert:hover {
+  border-color: var(--gold);
+  color: var(--gold-bright);
 }
 
 /* --- Notes: markdown + resize + icon toolbar --- */
@@ -1544,7 +2134,7 @@ input[type="number"]::-webkit-outer-spin-button {
 .notes-textarea {
   resize: vertical;
   min-height: 90px;
-  font-family: 'Spectral', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   line-height: 1.5;
 }
 
@@ -1596,7 +2186,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .error-text {
-  color: #e2a6a3;
+  color: var(--danger-text);
   font-size: 12px;
   margin: 10px 0 0;
 }
@@ -1627,6 +2217,30 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 7px;
   padding: 1px 5px;
   margin-top: 0;
+}
+
+/* A subtle "add another" placeholder button directly under the modifier
+ * list (or, with none yet, right where the list would start) -- edit-mode
+ * only, same as the duplicate/remove buttons, since this is also a way to
+ * change the node rather than just view it. */
+.craft-node-add-mod-btn {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 4px 6px;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  background: transparent;
+  border: 1px dashed var(--border-bronze-light);
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+.craft-node-add-mod-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  background: rgba(var(--gold-rgb), 0.08);
+  box-shadow: none;
 }
 
 /* --- Notes rendered directly on the canvas node --- */
@@ -1678,7 +2292,7 @@ input[type="number"]::-webkit-outer-spin-button {
   background: var(--bg-input);
   color: var(--text);
   padding: 9px;
-  font-family: 'Spectral', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   line-height: 1.5;
   resize: vertical;
 }
@@ -1712,7 +2326,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .color-swatch-active {
   border-color: var(--gold);
-  box-shadow: 0 0 0 2px rgba(200, 170, 110, 0.4);
+  box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.4);
 }
 
 .color-swatch-custom {
@@ -1856,7 +2470,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .reorder-btn:disabled:hover {
-  background: linear-gradient(180deg, #2a2115, #17130c);
+  background: linear-gradient(180deg, var(--btn-grad-hi), var(--btn-grad-lo));
   border-color: var(--border-bronze);
   color: var(--gold);
 }
@@ -1883,7 +2497,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .saved-graph-row-current {
   border-color: var(--gold);
-  background: rgba(200, 170, 110, 0.08);
+  background: rgba(var(--gold-rgb), 0.08);
 }
 
 .saved-graph-info {
@@ -1900,7 +2514,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .saved-graph-current-tag {
-  font-family: 'Spectral', serif;
+  font-family: 'Inter', system-ui, sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 9px;
@@ -1920,6 +2534,69 @@ input[type="number"]::-webkit-outer-spin-button {
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+}
+
+/* --- Modifier search modal --- */
+.modifier-search-modal {
+  width: min(680px, 92vw);
+}
+
+.modifier-search-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.modifier-search-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.modifier-search-toolbar button {
+  padding: 3px 7px;
+  font-size: 11px;
+}
+
+/* Colored per-source, via the same --chip-color/--chip-rgb custom
+ * properties as tag-badge -- inactive tabs show a tinted outline so every
+ * category's color is visible even before it's toggled on, and the active
+ * state fills in with that color instead of the generic gold every other
+ * .category-tab-active uses, so the filter row visually matches the
+ * colored badge each result carries. */
+.modifier-source-tab {
+  border-color: rgba(var(--chip-rgb), 0.5);
+  color: var(--chip-color);
+}
+
+.modifier-source-tab:hover {
+  border-color: var(--chip-color);
+  color: #fff;
+}
+
+.modifier-source-tab.category-tab-active {
+  border-color: var(--chip-color);
+  color: #fff;
+  background: rgba(var(--chip-rgb), 0.4);
+}
+
+/* Bigger and bolder than the tiny in-node tag-badge this shares a base
+ * class with -- a compact node has no room to spare, but a search result
+ * row does, and this badge is the primary way to tell entries apart at a
+ * glance, so it needs to actually pop against the row rather than
+ * disappear at 8px. */
+.modifier-source-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-width: 1.5px;
+  background: rgba(var(--chip-rgb), 0.24);
+  border-color: rgba(var(--chip-rgb), 0.75);
 }
 
 /* =====================================================================
@@ -1943,7 +2620,9 @@ input[type="number"]::-webkit-outer-spin-button {
     font-size: 15px;
   }
 
-  .edge-remove {
+  .edge-remove,
+  .edge-invert,
+  .edge-icon-pick {
     width: 26px;
     height: 26px;
   }
@@ -1962,8 +2641,8 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 
   .app-favicon {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
   }
 
   .mobile-menu-toggle {
@@ -1976,12 +2655,19 @@ input[type="number"]::-webkit-outer-spin-button {
     margin-left: auto;
     border-radius: 4px;
     font-size: 16px;
+    /* Between the title and the disclaimer here -- .header-title-block's
+     * order:1 is for the desktop layout (right next to the title); on
+     * mobile it needs to fall after both of these instead (see its own
+     * override below), so the hamburger stays right where this section's
+     * comment says: at the title row's right edge. */
+    order: 1;
   }
 
   .header-disclaimer {
     flex-basis: 100%;
     margin-left: 0;
     font-size: 9px;
+    order: 2;
   }
 
   .header-workspace {
@@ -1993,33 +2679,23 @@ input[type="number"]::-webkit-outer-spin-button {
   .header-title-block {
     width: 100%;
     min-height: 0;
+    margin-left: 0;
+    order: 3;
   }
 
   .graph-name {
     width: 100%;
   }
 
-  /* Desktop lets this wrap onto more rows as currencies pile up, which
-   * is fine with room to spare; on a phone that can turn into several
-   * rows permanently eating canvas space above the fold. Keep it to one
-   * compact row instead and let it scroll sideways -- everything is
-   * still reachable, it just isn't all visible at once by default. */
-  .total-cost-bar {
-    padding: 6px 14px;
-    gap: 6px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .total-cost-bar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .total-cost-label {
-    flex-shrink: 0;
-    font-size: 10px;
+  /* No longer tucked behind the hamburger dropdown now that it lives in
+   * .header-brand (see App.tsx) rather than .header-workspace -- it's
+   * always visible, so it gets its own full-width, wrapping row after the
+   * plan name instead of trying to cram everything onto one line. */
+  .view-settings {
+    order: 4;
+    width: 100%;
+    flex-wrap: wrap;
+    margin-left: 0;
   }
 
   .total-cost-chip {
@@ -2050,7 +2726,7 @@ input[type="number"]::-webkit-outer-spin-button {
     overflow-y: auto;
     background:
       var(--noise-texture),
-      linear-gradient(180deg, #1c150d, #0f0b07);
+      linear-gradient(180deg, var(--panel-grad-hi), var(--panel-grad-lo));
     background-blend-mode: overlay;
     border-bottom: 1px solid var(--border-bronze);
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
@@ -2070,19 +2746,13 @@ input[type="number"]::-webkit-outer-spin-button {
     padding-left: 0;
     border-left: none;
     padding-top: 10px;
-    border-top: 1px solid rgba(140, 106, 55, 0.3);
+    border-top: 1px solid rgba(var(--border-bronze-light-rgb), 0.3);
     gap: 6px;
   }
 
   .header-menu-panel-open .button-group:first-child {
     padding-top: 0;
     border-top: none;
-  }
-
-  .header-menu-panel-open .view-settings {
-    margin-left: 0;
-    width: 100%;
-    flex-wrap: wrap;
   }
 
   /* Tapping anywhere outside the open dropdown closes it -- a
@@ -2128,7 +2798,8 @@ input[type="number"]::-webkit-outer-spin-button {
    * both side by side. The resizer's drag-to-resize behavior is
    * meaningless on touch, so only its toggle button remains -- moved to
    * a fixed, thumb-reachable corner. --- */
-  main {
+  main,
+  .main-sidebar-left {
     grid-template-columns: 1fr 0px 0px;
   }
 
@@ -2155,7 +2826,7 @@ input[type="number"]::-webkit-outer-spin-button {
     font-size: 15px;
     z-index: 45;
     background: linear-gradient(180deg, var(--gold-bright), var(--gold));
-    color: #1a1206;
+    color: var(--on-accent-text);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
   }
 
@@ -2176,6 +2847,22 @@ input[type="number"]::-webkit-outer-spin-button {
 
   .sidebar-resizer:not(.sidebar-resizer-collapsed) + aside {
     transform: translateX(0);
+  }
+
+  /* Mirrored slide-in-from-the-left variant of the two rules above. The
+   * open-state (translateX(0)) rule doesn't need its own mirror -- "no
+   * translation" is the same value regardless of which edge it slides in
+   * from, and it already out-specifies the closed-state rule here. */
+  .main-sidebar-left aside {
+    right: auto;
+    left: 0;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.7);
+    transform: translateX(-100%);
+  }
+
+  .main-sidebar-left .sidebar-toggle {
+    right: auto;
+    left: 14px;
   }
 
   /* --- The minimap is a nice-to-have that eats a lot of already-scarce
